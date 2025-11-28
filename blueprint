@@ -1,0 +1,175 @@
+1. Konsep Inti Proyek: "Parlio" 
+• Nama Proyek: Parlio. 
+• Visi: Menjadi platform gamifikasi utama untuk pembelajaran bahasa Prancis di 
+tingkat SMA. 
+• Konsep Gamifikasi: "Menaklukkan Menara Eiffel" (La Conquête de la Tour Eiffel). 
+o Setiap Chapter (Bab) yang dibuat guru di Quest Builder adalah satu Lantai 
+(Étage) di menara virtual. 
+o Setiap Lesson (Sub-bab) adalah "Ruangan" di dalam lantai tersebut. 
+o Setiap Quest (Kuis/Tantangan) adalah "Tantangan" yang harus diselesaikan 
+untuk membuka ruangan berikutnya atau lantai berikutnya. 
+o Ujian Bos (Combat de Boss): Sebuah Quest khusus di akhir setiap Chapter 
+yang menguji pemahaman seluruh materi di lantai tersebut. 
+• Elemen Gamifikasi Utama: 
+o XP (Experience Points): Didapat dari menjawab soal dengan benar dan 
+menyelesaikan misi. Digunakan untuk naik level profil siswa. 
+o Koin (Écus): Mata uang virtual yang didapat dari menyelesaikan Chapter atau 
+misi khusus. Digunakan di Toko Suvenir. 
+o Lencana (Badges): Penghargaan untuk pencapaian spesifik (misal: "Roi de la 
+Conjugaison" - Raja Konjugasi). 
+o Papan Peringkat (Leaderboard): Menampilkan peringkat siswa berdasarkan 
+XP. 
+ 
+2. Peran & Arsitektur Halaman 
+Berikut adalah rincian detail untuk setiap peran, termasuk navigasi dan fitur per halaman. 
+A. Super Admin (Tampilan: Desktop/Administratif) 
+Fokus utama adalah kesehatan, keamanan, dan pengelolaan platform secara keseluruhan. 
+• Navigasi (Sidebar Kiri atau Top Navbar): 
+o Dashboard 
+o Kelola Akun (Siswa & Guru) 
+o Monitoring & Keamanan 
+o Kontrol Fitur 
+o Mode Maintenance 
+• Detail Fitur per Halaman: 
+1. Dashboard: 
+▪ Menampilkan statistik vital: Jumlah total siswa, total guru, pengguna 
+aktif harian, pendaftaran baru. 
+▪ Grafik aktivitas server dan penggunaan database. 
+▪ Quick Access ke menu lain. 
+2. Kelola Akun (User Management): 
+▪ Dua tab: "Kelola Guru" dan "Kelola Siswa". 
+▪ Fitur CRUD: 
+▪ Create: Form untuk membuat akun baru satu per satu. Tombol 
+untuk "Unggah Massal" (via .csv atau Excel). 
+▪ Read: Menampilkan daftar semua pengguna dengan fitur 
+search dan filter (berdasarkan nama, email, role). 
+▪ Update: Mengedit data pengguna (nama, email) , mereset kata 
+sandi. 
+▪ Delete: Menonaktifkan atau menghapus akun. 
+3. Monitoring & Keamanan: 
+▪ Tampilan real-time log aktivitas server. 
+▪ Laporan error (debug) dari aplikasi. 
+▪ Log keamanan (misal: percobaan login gagal, aktivitas mencurigakan). 
+4. Kontrol Fitur (Feature Flags): 
+▪ Daftar fitur-fitur utama dengan tombol toggle (Aktif/Non-aktif). 
+▪ Contoh: Menonaktifkan fitur "Toko Suvenir", menonaktifkan 
+"Reward" dari Guru. 
+5. Mode Maintenance: 
+▪ Satu tombol "master switch" untuk menutup akses sementara ke 
+seluruh website (kecuali halaman login Super Admin) saat ada 
+pembaruan besar. 
+ 
+B. Guru (Tampilan: Desktop/Fungsional) 
+Fokus utama adalah pembuatan konten, manajemen kelas, dan pemantauan kemajuan siswa. 
+• Navigasi (Sidebar Kiri): 
+o Dashboard 
+o Kelola Kelas 
+o Quest Builder 
+o Leaderboard 
+o Reward 
+o Laporan 
+o Akun 
+• Detail Fitur per Halaman: 
+1. Dashboard: 
+▪ Menampilkan ringkasan statistik dari semua kelas yang diajar (tingkat 
+partisipasi, rata-rata nilai). 
+▪ Feed notifikasi: "Siswa X telah menyelesaikan Chapter Y". 
+▪ Widget "Siswa Perlu Perhatian" (yang mendapat nilai rendah atau lama 
+tidak aktif). 
+▪ Tombol Quick Access: "Buat Kelas Baru", "Buat Chapter Baru". 
+2. Kelola Kelas: 
+▪ Halaman Utama: Tampilan daftar semua kelas yang Anda ajar. 
+Tombol "Buat Kelas Baru". 
+▪ Fitur "Buat Kelas Baru": Form untuk nama_kelas. Setelah dibuat, 
+sistem otomatis meng-generate kode unik untuk dibagikan ke siswa. 
+▪ Halaman Detail Kelas (Saat satu kelas diklik): 
+▪ Tab 1: Siswa: Melihat daftar siswa yang terdaftar di kelas ini. 
+Opsi untuk mengeluarkan siswa. 
+▪ Tab 2: Statistik Performa: Analitik khusus kelas ini. Grafik 
+kemajuan siswa per chapter. Menampilkan soal yang paling 
+sering salah dijawab di kelas ini. 
+▪ Tab 3: Penugasan (Assigned Chapters): Daftar Chapter dari 
+Quest Builder yang sudah ditugaskan ke kelas ini. Tombol 
+"Assign Chapter" (memunculkan modal untuk memilih 
+Chapter). 
+▪ Tab 4: Pengumuman: Form untuk membuat pengumuman 
+yang hanya akan terlihat oleh siswa di kelas ini. 
+3. Quest Builder (Bank Materi & Soal): 
+▪ Halaman Utama (Chapter): Daftar semua Chapter (Bab) yang 
+pernah Anda buat. Fitur CRUD (Create, Read, Update, Delete) untuk 
+Chapter. 
+▪ Halaman Detail Chapter (Saat satu Chapter diklik): 
+▪ Tampilan daftar Lesson (Sub-bab) di dalam Chapter tersebut. 
+Fitur CRUD untuk Lesson. 
+▪ Halaman Detail Lesson (Saat satu Lesson diklik): 
+▪ Tab 1: Materi: Editor teks/visual untuk memasukkan materi. 
+Fitur upload untuk dokumen (PDF), gambar, dan link 
+audio/video ke Supabase Storage. 
+▪ Tab 2: Quest (Tantangan): Daftar soal/kuis untuk Lesson ini. 
+Tombol "Buat Soal Baru". 
+▪ Fitur "Buat Soal Baru": Form untuk memilih tipe soal 
+(Pilihan Ganda, Menjodohkan, Esai, Isian Singkat). Form untuk 
+memasukkan soal, opsi (jika ada), dan kunci jawaban. 
+▪ Tab 3: Rules: Mengatur aturan untuk Lesson ini (misal: jumlah 
+XP/Koin yang didapat , syarat kelulusan nilai minimum ). 
+4. Leaderboard: 
+▪ Melihat papan peringkat XP global. 
+▪ Fitur filter untuk melihat peringkat hanya di kelas tertentu atau semua 
+siswa yang Anda ajar. 
+5. Reward (Opsional): 
+▪ Halaman sederhana untuk memberikan reward manual. 
+▪ Contoh: "Berikan 100 Koin tambahan ke Top 3 Leaderboard 
+Mingguan" atau "Berikan lencana kustom ke siswa X". 
+6. Laporan: 
+▪ Fitur untuk men-generate laporan nilai siswa. 
+▪ Filter berdasarkan Kelas, Siswa, atau Rentang Waktu. 
+▪ Tombol "Ekspor ke Excel" untuk mengunduh data nilai mentah. 
+7. Akun: 
+▪ Halaman untuk mengelola profil guru (ganti nama, ganti password). 
+ 
+C. Siswa (Tampilan: Mobile-First) 
+Fokus utama adalah pengalaman belajar yang imersif, menyenangkan, dan fokus pada 
+progres. 
+• Navigasi (Bottom Navbar): 
+o Dashboard 
+o Kelas 
+o Leaderboard 
+o Reward 
+o Profile 
+• Detail Fitur per Halaman: 
+1. Dashboard (Halaman Utama): 
+▪ Widget utama: Visualisasi progres "Menara Eiffel" saat ini. 
+▪ Tampilan XP, Level, dan Koin (Écus). 
+▪ Feed "Misi Harian" (Contoh: "Selesaikan 1 Quest", "Jawab 5 soal 
+kosakata"). 
+▪ Feed Notifikasi & Pengumuman dari guru. 
+2. Kelas (L'aventure Eiffel): 
+▪ Jika belum bergabung: Tampilan untuk memasukkan "Kode Unik" 
+untuk bergabung ke kelas. 
+▪ Jika sudah bergabung: 
+▪ Menampilkan kelas yang diikuti. 
+▪ Tampilan visual "Menara Eiffel". Menampilkan "Lantai" 
+(Chapters) yang sudah ditugaskan guru. 
+▪ Saat "Lantai" (Chapter) diklik, menampilkan "Ruangan" 
+(Lessons) di dalamnya. 
+▪ Saat "Ruangan" (Lesson) diklik: 
+▪ Tab 1: Materi: Membaca, melihat, atau mendengarkan 
+materi (teks, audio, video). 
+▪ Tab 2: Quest (Arène de Défi ): Tombol untuk memulai 
+tantangan/kuis. 
+▪ Halaman Kuis: Antarmuka interaktif untuk mengerjakan soal 
+(PG, menjodohkan, dll.). Memberikan umpan balik instan 
+(benar/salah). 
+3. Leaderboard: 
+▪ Melihat posisi di papan peringkat. 
+▪ Filter: "Peringkat di Kelasku" dan "Peringkat Seluruh Sekolah". 
+4. Reward (Boutique de Souvenirs): 
+▪ "Toko Suvenir" virtual. 
+▪ Tempat membelanjakan Koin (Écus) untuk membeli item kosmetik 
+(bingkai avatar, tema profil). 
+5. Profile (Profil & Prestasi): 
+▪ Halaman profil pribadi yang bisa dikustomisasi. 
+▪ Galeri untuk melihat semua Lencana (Badges) yang telah didapat. 
+▪ Statistik personal (total XP, total waktu belajar, tingkat akurasi 
+jawaban). 
+▪ Menu untuk mengelola akun (ganti password).
