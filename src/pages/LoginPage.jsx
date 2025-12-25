@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import Logo1 from '../assets/logo/1.png'
+import Logo2 from '../assets/logo/2.png'
 
 function LoginPage() {
   const [email, setEmail] = useState('')
@@ -58,7 +60,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-slate-50 flex">
       {/* Left Side - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
@@ -66,26 +68,19 @@ function LoginPage() {
           <div className="mb-8">
             <button 
               onClick={() => navigate('/')}
-              className="flex items-center space-x-3 group"
+              className="flex items-center group"
             >
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-red-500 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3 group-hover:rotate-6 transition-transform">
-                  <span className="text-white font-black text-2xl transform -rotate-3">P</span>
-                </div>
-              </div>
-              <div>
-                <span className="text-gray-900 font-black text-3xl tracking-tight">Parlio</span>
-              </div>
+              <img src={Logo1} alt="Parlio" className="h-12 object-contain group-hover:scale-105 transition-transform" />
             </button>
           </div>
 
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-black text-gray-900 mb-2">
-              Selamat Datang! 👋
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">
+              Bienvenue! 👋
             </h1>
-            <p className="text-gray-600 text-lg">
-              Masuk ke akun Parlio untuk melanjutkan petualangan belajar bahasa Prancis
+            <p className="text-slate-600">
+              Masuk untuk melanjutkan petualangan belajar bahasa Prancis
             </p>
           </div>
         
@@ -95,39 +90,39 @@ function LoginPage() {
             <input type="password" name="fakepass" autoComplete="new-password" className="hidden" />
           
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Email</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-4 bg-gray-50 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition placeholder:text-gray-400 font-medium"
+                className="w-full px-4 py-3.5 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E258F]/20 focus:border-[#1E258F] transition placeholder:text-slate-400"
                 placeholder="nama@email.com"
               />
             </div>
           
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Password</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-4 bg-gray-50 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition placeholder:text-gray-400 font-medium"
+                className="w-full px-4 py-3.5 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E258F]/20 focus:border-[#1E258F] transition placeholder:text-slate-400"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl">
-                <p className="text-red-600 text-sm font-semibold text-center">{error}</p>
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-red-600 text-sm font-medium text-center">{error}</p>
               </div>
             )}
           
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-[#1E258F] text-white py-4 rounded-xl font-semibold text-lg shadow-lg hover:bg-[#161c6e] hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -138,7 +133,7 @@ function LoginPage() {
                   <span>Memuat...</span>
                 </span>
               ) : (
-                'Masuk ke Akun'
+                '🚀 Masuk'
               )}
             </button>
           </form>
@@ -146,27 +141,22 @@ function LoginPage() {
           <div className="mt-8 text-center">
             <button 
               onClick={() => navigate('/')}
-              className="text-gray-600 hover:text-gray-900 text-sm font-semibold inline-flex items-center gap-2 group"
+              className="text-slate-500 hover:text-[#1E258F] text-sm font-medium inline-flex items-center gap-2 group"
             >
               <span className="group-hover:-translate-x-1 transition-transform">←</span>
               <span>Kembali ke Beranda</span>
             </button>
           </div>
 
-          {/* Quick Stats */}
-          <div className="mt-10 pt-8 border-t-2 border-gray-100">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-black text-blue-600">1000+</div>
-                <div className="text-xs text-gray-600 font-semibold">Siswa</div>
-              </div>
-              <div>
-                <div className="text-2xl font-black text-red-500">100+</div>
-                <div className="text-xs text-gray-600 font-semibold">Quest</div>
-              </div>
-              <div>
-                <div className="text-2xl font-black text-gray-900">4.9★</div>
-                <div className="text-xs text-gray-600 font-semibold">Rating</div>
+          {/* Info */}
+          <div className="mt-10 pt-8 border-t border-slate-200">
+            <div className="bg-[#1E258F]/5 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">💡</div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-900 mb-1">Belum punya akun?</div>
+                  <div className="text-xs text-slate-600">Hubungi guru bahasa Prancis kamu untuk mendapatkan akun Parlio.</div>
+                </div>
               </div>
             </div>
           </div>
@@ -174,64 +164,70 @@ function LoginPage() {
       </div>
 
       {/* Right Side - Visual/Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 relative overflow-hidden items-center justify-center p-12">
-        {/* Background Patterns */}
-        <div className="absolute inset-0 opacity-10">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1E258F] via-[#252d9e] to-[#1a2080] relative overflow-hidden items-center justify-center p-12">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
-            backgroundImage: `linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)`,
-            backgroundSize: '60px 60px'
+            backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
+            backgroundSize: '40px 40px'
           }}></div>
         </div>
 
         {/* Content */}
         <div className="relative z-10 text-center max-w-lg">
           <div className="mb-8">
-            <div className="text-6xl mb-6 animate-bounce-slow">🇫🇷</div>
-            <h2 className="text-5xl font-black text-white mb-6 leading-tight">
-              Kuasai Bahasa Prancis!
+            <img src={Logo2} alt="Parlio" className="h-20 mx-auto mb-6 object-contain" />
+            <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
+              Belajar Bahasa Prancis
             </h2>
-            <p className="text-xl text-blue-100 leading-relaxed">
-              Belajar bahasa Prancis dengan sistem gamifikasi yang seru dan interaktif. Setiap pelajaran adalah petualangan baru!
+            <p className="text-lg text-blue-100 leading-relaxed">
+              Sistem pembelajaran bahasa Prancis berbasis web dengan gamifikasi yang seru dan interaktif.
             </p>
           </div>
 
-          {/* Feature Highlights */}
-          <div className="space-y-4 mt-12">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border-2 border-white/20">
+          {/* Feature Cards */}
+          <div className="space-y-3 mt-10">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/15 transition-colors">
               <div className="flex items-center gap-4">
-                <div className="text-3xl">🎮</div>
+                <div className="w-12 h-12 bg-amber-400 rounded-xl flex items-center justify-center text-xl shadow-lg">⭐</div>
                 <div className="text-left">
-                  <div className="text-white font-bold text-lg">Gamifikasi Penuh</div>
-                  <div className="text-blue-100 text-sm">XP, Level, Coins & Rewards</div>
+                  <div className="text-white font-semibold">XP & Level System</div>
+                  <div className="text-blue-200 text-sm">Naik level setiap menyelesaikan quest</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border-2 border-white/20">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/15 transition-colors">
               <div className="flex items-center gap-4">
-                <div className="text-3xl">📊</div>
+                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center text-xl shadow-lg">💰</div>
                 <div className="text-left">
-                  <div className="text-white font-bold text-lg">Progress Tracking</div>
-                  <div className="text-blue-100 text-sm">Dashboard & Leaderboard Real-time</div>
+                  <div className="text-white font-semibold">Coins & Rewards</div>
+                  <div className="text-blue-200 text-sm">Kumpulkan Écus untuk hadiah</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border-2 border-white/20">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/15 transition-colors">
               <div className="flex items-center gap-4">
-                <div className="text-3xl">🎯</div>
+                <div className="w-12 h-12 bg-green-400 rounded-xl flex items-center justify-center text-xl shadow-lg">📊</div>
                 <div className="text-left">
-                  <div className="text-white font-bold text-lg">Quest Interaktif</div>
-                  <div className="text-blue-100 text-sm">Berbagai Jenis Soal Menarik</div>
+                  <div className="text-white font-semibold">Leaderboard</div>
+                  <div className="text-blue-200 text-sm">Bersaing dengan teman sekelas</div>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Bottom Badge */}
+          <div className="mt-10 inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full text-sm text-white/80">
+            <span>�</span>
+            <span>SMAN 1 Padamara</span>
           </div>
         </div>
 
         {/* Decorative Elements */}
-        <div className="absolute top-10 right-10 w-32 h-32 bg-white/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 left-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-20 right-20 w-32 h-32 bg-amber-400/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 left-20 w-40 h-40 bg-blue-300/10 rounded-full blur-3xl"></div>
       </div>
     </div>
   )
