@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 function StudentQuestResult() {
@@ -49,11 +50,11 @@ function StudentQuestResult() {
   }
 
   const handleBack = () => {
-    // Navigate back to chapter detail (not lesson/materials)
-    if (resultData?.chapterId) {
-      navigate(`/student/chapters/${resultData.chapterId}`, { replace: true })
-    } else if (resultData?.lessonId) {
+    // Navigate back to lesson detail
+    if (resultData?.lessonId) {
       navigate(`/student/lesson/${resultData.lessonId}`, { replace: true })
+    } else if (resultData?.chapterId) {
+      navigate(`/student/chapters/${resultData.chapterId}`, { replace: true })
     } else {
       navigate('/student/chapters', { replace: true })
     }
@@ -68,12 +69,19 @@ function StudentQuestResult() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+        <div className="w-32 h-32">
+          <DotLottieReact
+            src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+            loop
+            autoplay
+          />
+        </div>
       </div>
     )
   }
 
-  const isPassed = resultData.percentage >= (resultData.minScoreToPass || 70)
+  // Use the passed status from resultData (calculated in StudentQuestDetail)
+  const isPassed = resultData.passed || false
   const canRetry = resultData.attemptNumber < (resultData.maxAttempts || 3)
   
   // Check if rewards were given (only when passing with better score)
@@ -139,7 +147,7 @@ function StudentQuestResult() {
           {/* Score */}
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 text-center">
             <div className="text-6xl font-bold font-['Poppins'] mb-1">
-              {Math.round(resultData.percentage)}%
+              {Math.round(resultData.percentage)}
             </div>
             <div className="text-white/80 text-sm font-['Poppins']">
               {resultData.score}/{resultData.maxScore} poin
@@ -180,11 +188,11 @@ function StudentQuestResult() {
         <div className={`rounded-xl p-4 ${rewardsGiven ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="flex items-center justify-between mb-3">
             <h3 className={`text-sm font-semibold font-['Poppins'] ${rewardsGiven ? 'text-amber-800' : 'text-gray-600'}`}>
-              {rewardsGiven ? '🎁 Reward Didapat' : '🎁 Status Reward'}
+              {rewardsGiven ? 'Reward Didapat' : 'Status Reward'}
             </h3>
             {rewardsGiven && (
               <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium font-['Poppins']">
-                ✓ Ditambahkan
+                Ditambahkan ✓
               </span>
             )}
           </div>
@@ -200,7 +208,7 @@ function StudentQuestResult() {
               {resultData.coinsEarned > 0 && (
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-600 font-['Poppins']">+{resultData.coinsEarned}</div>
-                  <div className="text-xs text-yellow-700 font-['Poppins']">Koin</div>
+                  <div className="text-xs text-yellow-700 font-['Poppins']">Coin</div>
                 </div>
               )}
             </div>
@@ -213,11 +221,11 @@ function StudentQuestResult() {
                 </div>
                 <div className="text-center">
                   <div className="text-xl font-bold text-gray-400 font-['Poppins']">+0</div>
-                  <div className="text-xs text-gray-400 font-['Poppins']">Koin</div>
+                  <div className="text-xs text-gray-400 font-['Poppins']">Coin</div>
                 </div>
               </div>
               <p className="text-xs text-gray-500 font-['Poppins'] flex items-center justify-center gap-1">
-                <span>ℹ️</span>
+                <span></span>
                 <span>{noRewardsReason}</span>
               </p>
             </div>
@@ -230,7 +238,7 @@ function StudentQuestResult() {
           className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center justify-between hover:bg-gray-50 transition-colors"
         >
           <span className="font-semibold text-gray-800 font-['Poppins']">
-            📋 Lihat Detail Jawaban
+            Lihat Detail Jawaban
           </span>
           <svg 
             className={`w-5 h-5 text-gray-500 transition-transform ${showAnswers ? 'rotate-180' : ''}`} 
@@ -319,21 +327,16 @@ function StudentQuestResult() {
             Kembali
           </button>
           
-          {!isPassed && canRetry && (
+          {canRetry && (
             <button
               onClick={handleTryAgain}
-              className="flex-1 py-3 px-4 bg-[#1E258F] text-white font-semibold rounded-xl hover:bg-[#161d6f] transition-colors font-['Poppins']"
+              className={`flex-1 py-3 px-4 font-semibold rounded-xl transition-colors font-['Poppins'] ${
+                isPassed 
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-orange-600 text-white hover:bg-orange-700'
+              }`}
             >
               Coba Lagi
-            </button>
-          )}
-
-          {isPassed && (
-            <button
-              onClick={handleBack}
-              className="flex-1 py-3 px-4 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors font-['Poppins']"
-            >
-              Lanjut Belajar
             </button>
           )}
         </div>

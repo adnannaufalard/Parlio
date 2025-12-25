@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
 import UserInfoHeader from '../components/UserInfoHeader'
 import toast from 'react-hot-toast'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 
 function StudentClassChapters() {
   const navigate = useNavigate()
@@ -41,7 +42,13 @@ function StudentClassChapters() {
 
   const fetchClassChapters = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use getSession for faster auth check (cached)
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       // Get class info
       const { data: classInfo, error: classError } = await supabase
@@ -324,8 +331,14 @@ function StudentClassChapters() {
       <StudentLayout showHeader={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-500">Memuat pelajaran...</p>
+            <div className="w-48 h-48 mx-auto mb-2">
+              <DotLottieReact
+                src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+                loop
+                autoplay
+              />
+            </div>
+            <p className="text-gray-500 font-['Poppins']">Memuat pelajaran...</p>
           </div>
         </div>
       </StudentLayout>
@@ -334,9 +347,6 @@ function StudentClassChapters() {
 
   return (
     <StudentLayout showClassNav={true} activeClassTab={activeTab} onClassTabChange={setActiveTab}>
-      {/* User Info Header */}
-      <UserInfoHeader />
-
       {/* Header Section - Dark Blue Background */}
       <div className="bg-[#1E258F] rounded-2xl shadow-lg mb-6 overflow-hidden">
         <div className="p-6">
@@ -362,12 +372,18 @@ function StudentClassChapters() {
       {activeTab === 'pelajaran' && (
         <div className="space-y-4">
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
-            <span>📚</span> Daftar Pelajaran - {chapters.length} Pelajaran
+            <span></span> Daftar Pelajaran
           </h3>
         
           {chapters.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
-              <div className="text-7xl mb-4">📚</div>
+              <div className="w-48 h-48 mx-auto mb-2">
+                <DotLottieReact
+                  src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
               <h3 className="text-base font-semibold text-gray-800 mb-2 font-['Poppins']">Belum ada pelajaran</h3>
               <p className="text-sm text-gray-500 font-['Poppins']">Guru belum menambahkan pelajaran ke kelas ini</p>
             </div>
@@ -387,11 +403,7 @@ function StudentClassChapters() {
                   >
                     <div className="p-5">
                       <div className="flex items-start gap-4">
-                        {/* Icon */}
-                        <div className="bg-blue-50 p-3 rounded-xl flex-shrink-0 border border-blue-100">
-                          <span className="text-3xl">{chapter.icon || '📚'}</span>
-                        </div>
-
+      
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2">
@@ -491,7 +503,13 @@ function StudentClassChapters() {
           
           {announcements.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
-              <div className="text-6xl mb-4">📢</div>
+              <div className="w-48 h-48 mx-auto mb-2">
+                <DotLottieReact
+                  src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Pengumuman</h3>
               <p className="text-sm text-gray-600 font-['Poppins']">
                 Belum ada pengumuman dari guru untuk kelas ini
@@ -547,7 +565,13 @@ function StudentClassChapters() {
           
           {members.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
-              <div className="text-6xl mb-4">👥</div>
+              <div className="w-48 h-48 mx-auto mb-2">
+                <DotLottieReact
+                  src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Anggota</h3>
               <p className="text-sm text-gray-600 font-['Poppins']">
                 Belum ada siswa yang bergabung ke kelas ini
@@ -594,7 +618,13 @@ function StudentClassChapters() {
           
           {leaderboardData.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
-              <div className="text-6xl mb-4">🏆</div>
+              <div className="w-48 h-48 mx-auto mb-2">
+                <DotLottieReact
+                  src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Data</h3>
               <p className="text-sm text-gray-600 font-['Poppins']">
                 Leaderboard akan muncul setelah ada aktivitas siswa
@@ -697,7 +727,13 @@ function StudentClassChapters() {
           
           {forumPosts.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
-              <div className="text-6xl mb-4">💬</div>
+              <div className="w-48 h-48 mx-auto mb-2">
+                <DotLottieReact
+                  src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Diskusi</h3>
               <p className="text-sm text-gray-600 font-['Poppins']">
                 Mulai diskusi dengan menulis komentar pertama!

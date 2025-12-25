@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 import DashboardLayout from '../components/DashboardLayout'
 
@@ -257,12 +258,24 @@ function SuperAdminAnnouncements() {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           {loading ? (
             <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <div className="w-24 h-24 mx-auto mb-4">
+                <DotLottieReact
+                  src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
               <p className="text-gray-500">Memuat announcements...</p>
             </div>
           ) : announcements.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="text-6xl mb-4">📢</div>
+              <div className="w-40 h-40 mx-auto mb-4">
+                <DotLottieReact
+                  src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Belum ada announcement</h3>
               <p className="text-gray-600 mb-6">
                 Buat announcement pertama untuk ditampilkan di dashboard siswa

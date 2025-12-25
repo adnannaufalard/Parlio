@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 function TeacherQuestBuilder() {
@@ -94,12 +95,24 @@ function TeacherQuestBuilder() {
         {/* Chapters List */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-24 h-24 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+                loop
+                autoplay
+              />
+            </div>
             <p className="text-gray-600 mt-2">Memuat pelajaran...</p>
           </div>
         ) : chapters.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-6xl mb-4">📚</div>
+            <div className="w-40 h-40 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                loop
+                autoplay
+              />
+            </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Belum Ada Pelajaran</h3>
             <p className="text-gray-600 mb-6">Mulai bangun perjalanan pembelajaran dengan membuat pelajaran pertama!</p>
             <button

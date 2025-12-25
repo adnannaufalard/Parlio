@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
-import UserInfoHeader from '../components/UserInfoHeader'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 function StudentChapterDetail() {
@@ -21,7 +21,13 @@ function StudentChapterDetail() {
 
   const fetchChapterData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use getSession for faster auth check (cached)
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       // Get chapter info (includes class_id)
       const { data: chapterData, error: chapterError } = await supabase
@@ -122,7 +128,13 @@ function StudentChapterDetail() {
       <StudentLayout showHeader={true} showBottomNav={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="w-32 h-32 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+                loop
+                autoplay
+              />
+            </div>
             <p className="text-gray-500 font-['Poppins']">Memuat lessons...</p>
           </div>
         </div>
@@ -132,9 +144,6 @@ function StudentChapterDetail() {
 
   return (
     <StudentLayout showHeader={true} showBottomNav={false}>
-      {/* User Info Header */}
-      <UserInfoHeader />
-
       {/* Header - Dark Blue with Chapter Info */}
       <div className="bg-[#1E258F] rounded-2xl shadow-lg mb-6 overflow-hidden">
         <div className="p-6">
@@ -149,11 +158,9 @@ function StudentChapterDetail() {
           </button>
 
           <div className="flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-xl">
-              <span className="text-3xl">{chapter?.icon || '📚'}</span>
-            </div>
+    
             <div>
-              <h1 className="text-xl font-bold text-white font-['Poppins']">{chapter?.title}</h1>
+              <h1 className="text-xl font-semibold text-white font-['Poppins']">{chapter?.title}</h1>
               {chapter?.description && (
                 <p className="text-sm text-white/70 mt-1 font-['Poppins'] line-clamp-2">{chapter?.description}</p>
               )}
@@ -175,7 +182,13 @@ function StudentChapterDetail() {
         
         {lessons.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
-            <div className="text-6xl mb-4">📚</div>
+            <div className="w-40 h-40 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                loop
+                autoplay
+              />
+            </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Sub Bab</h3>
             <p className="text-sm text-gray-600 max-w-md mx-auto font-['Poppins']">
               Guru belum menambahkan sub bab ke pelajaran ini. Silakan cek kembali nanti!

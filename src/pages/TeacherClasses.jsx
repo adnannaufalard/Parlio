@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
 import CreateClassModal from '../components/CreateClassModal'
+import { LoadingSpinner, EmptyState } from '../components/StateAnimations'
 import { toast } from 'react-hot-toast'
 
 export default function TeacherClasses() {
@@ -80,7 +81,7 @@ export default function TeacherClasses() {
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+            className="flex items-center gap-2 bg-[#1E258F] text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -92,28 +93,29 @@ export default function TeacherClasses() {
         {/* Daftar Kelas */}
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <LoadingSpinner size="lg" />
           </div>
         ) : classes.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Kelas</h3>
-            <p className="text-gray-600 mb-6">Mulai dengan membuat kelas pertama Anda</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition"
-            >
-              Buat Kelas Pertama
-            </button>
+          <div className="bg-white rounded-lg shadow-md">
+            <EmptyState
+              title="Belum Ada Kelas"
+              description="Mulai dengan membuat kelas pertama Anda"
+              action={
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-[#1E258F] text-white px-6 py-2 rounded-md hover:bg-[#161c6e] transition"
+                >
+                  Buat Kelas Pertama
+                </button>
+              }
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {classes.map((cls) => (
               <div key={cls.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
                 {/* Header Card */}
-                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-4">
+                <div className="bg-[#1E258F] p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-white">{cls.class_name}</h3>
@@ -167,7 +169,7 @@ export default function TeacherClasses() {
                   <div className="flex gap-2">
                     <Link
                       to={`/teacher/classes/${cls.id}`}
-                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition text-sm font-medium text-center"
+                      className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-[#145214] transition text-sm font-medium text-center"
                     >
                       Kelola
                     </Link>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
-import UserInfoHeader from '../components/UserInfoHeader'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 // Video Preview Component
@@ -114,7 +114,7 @@ function MaterialPreviewModal({ material, onClose, onOpenQuest, quest, questComp
           {material.description && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
               <h4 className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2 font-['Poppins']">
-                <span>📋</span> Penjelasan dari Guru
+                <span></span> Penjelasan dari Guru
               </h4>
               <p className="text-sm text-blue-700 leading-relaxed font-['Poppins'] whitespace-pre-wrap">
                 {material.description}
@@ -196,8 +196,8 @@ function MaterialPreviewModal({ material, onClose, onOpenQuest, quest, questComp
                   : 'bg-[#1E258F] hover:bg-[#161d6f] text-white'
               }`}
             >
-              <span className="text-lg">{questCompleted ? '✓' : '🎯'}</span>
-              <span>{questCompleted ? 'Quest Sudah Selesai - Kerjakan Lagi' : 'Kerjakan Quest'}</span>
+              <span className="text-lg">🎯</span>
+              <span>{questCompleted ? 'Kerjakan Lagi' : 'Kerjakan Quest'}</span>
             </button>
           )}
 
@@ -262,47 +262,47 @@ function QuestConfirmModal({ quest, attemptCount, attemptHistory, onClose, onSta
           {/* Confirmation Message */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
             <p className="text-sm text-amber-800 font-semibold font-['Poppins'] flex items-center gap-2">
-              <span>⚠️</span>
+              <span></span>
               Yakin ingin mengerjakan quest sekarang?
             </p>
           </div>
 
           {/* Quest Info - Grid Layout */}
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-            <h4 className="text-xs font-bold text-gray-700 mb-2 font-['Poppins']">📋 Informasi Quest</h4>
+            <h4 className="text-xs font-bold text-gray-700 mb-2 font-['Poppins']">Informasi Quest</h4>
             <div className="grid grid-cols-2 gap-2">
               {quest.time_limit_minutes && (
                 <div className="bg-white rounded-lg p-2 border border-gray-100">
-                  <div className="text-lg font-bold text-red-600 font-['Poppins']">⏱️ {quest.time_limit_minutes}</div>
+                  <div className="text-lg font-bold text-red-600 font-['Poppins']">{quest.time_limit_minutes}</div>
                   <div className="text-xs text-gray-500 font-['Poppins']">menit</div>
                 </div>
               )}
               <div className="bg-white rounded-lg p-2 border border-gray-100">
-                <div className="text-lg font-bold text-purple-600 font-['Poppins']">🔄 {maxAttempts}x</div>
+                <div className="text-lg font-bold text-purple-600 font-['Poppins']">{maxAttempts}x</div>
                 <div className="text-xs text-gray-500 font-['Poppins']">maks percobaan</div>
               </div>
               {quest.poin_per_soal && (
                 <div className="bg-white rounded-lg p-2 border border-gray-100">
-                  <div className="text-lg font-bold text-blue-600 font-['Poppins']">💯 {quest.poin_per_soal}</div>
+                  <div className="text-lg font-bold text-blue-600 font-['Poppins']">{quest.poin_per_soal}</div>
                   <div className="text-xs text-gray-500 font-['Poppins']">poin/soal</div>
                 </div>
               )}
               {quest.min_points && (
                 <div className="bg-white rounded-lg p-2 border border-gray-100">
-                  <div className="text-lg font-bold text-green-600 font-['Poppins']">🎯 {quest.min_points}</div>
-                  <div className="text-xs text-gray-500 font-['Poppins']">min. poin lulus</div>
+                  <div className="text-lg font-bold text-green-600 font-['Poppins']">{quest.min_points}</div>
+                  <div className="text-xs text-gray-500 font-['Poppins']">min. nilai lulus</div>
                 </div>
               )}
               {quest.xp_reward && (
                 <div className="bg-white rounded-lg p-2 border border-gray-100">
-                  <div className="text-lg font-bold text-amber-600 font-['Poppins']">⚡ {quest.xp_reward}</div>
-                  <div className="text-xs text-gray-500 font-['Poppins']">XP reward</div>
+                  <div className="text-lg font-bold text-amber-600 font-['Poppins']">{quest.xp_reward * quest.questionCount}</div>
+                  <div className="text-xs text-gray-500 font-['Poppins']">Total XP</div>
                 </div>
               )}
               {quest.coins_reward && (
                 <div className="bg-white rounded-lg p-2 border border-gray-100">
-                  <div className="text-lg font-bold text-yellow-600 font-['Poppins']">🪙 {quest.coins_reward}</div>
-                  <div className="text-xs text-gray-500 font-['Poppins']">koin reward</div>
+                  <div className="text-lg font-bold text-yellow-600 font-['Poppins']">{quest.coins_reward * quest.questionCount}</div>
+                  <div className="text-xs text-gray-500 font-['Poppins']">Total Coin</div>
                 </div>
               )}
             </div>
@@ -316,7 +316,7 @@ function QuestConfirmModal({ quest, attemptCount, attemptHistory, onClose, onSta
                 className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
               >
                 <span className="text-sm font-semibold text-gray-700 font-['Poppins'] flex items-center gap-2">
-                  <span>📊</span> Histori Pengerjaan ({attemptHistory.length})
+                  <span></span> Histori Pengerjaan ({attemptHistory.length})
                 </span>
                 <svg 
                   className={`w-4 h-4 text-gray-500 transition-transform ${showHistory ? 'rotate-180' : ''}`} 
@@ -329,7 +329,9 @@ function QuestConfirmModal({ quest, attemptCount, attemptHistory, onClose, onSta
               {showHistory && (
                 <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
                   {attemptHistory.map((attempt, idx) => {
-                    const attemptPassed = attempt.passed || (attempt.percentage >= (quest.min_score_to_pass || 70))
+                    // Round percentage to avoid floating point comparison issues
+                    const roundedPercentage = Math.round((attempt.percentage || 0) * 100) / 100
+                    const attemptPassed = attempt.passed || (roundedPercentage >= (quest.min_score_to_pass || 60))
                     const formatDateTime = (dateString) => {
                       if (!dateString) return '-'
                       const date = new Date(dateString)
@@ -366,9 +368,9 @@ function QuestConfirmModal({ quest, attemptCount, attemptHistory, onClose, onSta
                         <div className="grid grid-cols-4 gap-1 text-center">
                           <div>
                             <div className="text-sm font-bold text-gray-800 font-['Poppins']">
-                              {Math.round(attempt.percentage || 0)}%
+                              {Math.round(attempt.percentage || 0)}
                             </div>
-                            <div className="text-[10px] text-gray-400 font-['Poppins']">Skor</div>
+                            <div className="text-[10px] text-gray-400 font-['Poppins']">Nilai</div>
                           </div>
                           <div>
                             <div className="text-sm font-bold text-gray-800 font-['Poppins']">
@@ -386,7 +388,7 @@ function QuestConfirmModal({ quest, attemptCount, attemptHistory, onClose, onSta
                             <div className={`text-sm font-bold font-['Poppins'] ${attempt.coins_earned > 0 ? 'text-yellow-600' : 'text-gray-300'}`}>
                               {attempt.coins_earned > 0 ? `+${attempt.coins_earned}` : '-'}
                             </div>
-                            <div className="text-[10px] text-gray-400 font-['Poppins']">Koin</div>
+                            <div className="text-[10px] text-gray-400 font-['Poppins']">Coin</div>
                           </div>
                         </div>
                       </div>
@@ -412,20 +414,34 @@ function QuestConfirmModal({ quest, attemptCount, attemptHistory, onClose, onSta
 
         {/* Modal Footer - Fixed */}
         <div className="border-t border-gray-200 p-4 bg-gray-50 flex-shrink-0">
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg transition-colors font-['Poppins'] text-sm"
-            >
-              Batal
-            </button>
-            <button
-              onClick={onStart}
-              className="flex-1 px-4 py-2.5 bg-[#1E258F] hover:bg-[#161d6f] text-white font-semibold rounded-lg transition-all font-['Poppins'] text-sm"
-            >
-              Kerjakan
-            </button>
-          </div>
+          {remainingAttempts > 0 ? (
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg transition-colors font-['Poppins'] text-sm"
+              >
+                Batal
+              </button>
+              <button
+                onClick={onStart}
+                className="flex-1 px-4 py-2.5 bg-[#1E258F] hover:bg-[#161d6f] text-white font-semibold rounded-lg transition-all font-['Poppins'] text-sm"
+              >
+                Kerjakan
+              </button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-red-600 font-medium font-['Poppins'] text-sm mb-3">
+                Kesempatan mengerjakan quest sudah habis!
+              </p>
+              <button
+                onClick={onClose}
+                className="w-full px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors font-['Poppins'] text-sm"
+              >
+                Tutup
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -504,7 +520,10 @@ function StudentLessonDetail() {
 
   const fetchQuests = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use getSession for faster auth check (cached)
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) return
       
       // Get all quests for this lesson with question count
       const { data: questsData, error: questsError } = await supabase
@@ -609,7 +628,13 @@ function StudentLessonDetail() {
       <StudentLayout showHeader={true} showBottomNav={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="w-32 h-32 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+                loop
+                autoplay
+              />
+            </div>
             <p className="text-gray-500 font-['Poppins']">Memuat materi...</p>
           </div>
         </div>
@@ -630,9 +655,6 @@ function StudentLessonDetail() {
 
   return (
     <StudentLayout showHeader={true} showBottomNav={false}>
-      {/* User Info Header */}
-      <UserInfoHeader />
-
       {/* Header */}
       <div className="bg-[#1E258F] rounded-2xl shadow-lg mb-6 overflow-hidden">
         <div className="p-6">
@@ -647,9 +669,6 @@ function StudentLessonDetail() {
           </button>
 
           <div className="flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-xl">
-              <span className="text-3xl">📖</span>
-            </div>
             <div>
               <h1 className="text-xl font-bold text-white font-['Poppins']">{lesson?.title}</h1>
               {lesson?.description && (
@@ -664,7 +683,7 @@ function StudentLessonDetail() {
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-base font-semibold text-gray-800 font-['Poppins'] flex items-center gap-2">
-            <span>📚</span> Daftar Materi
+            <span></span> Daftar Materi
           </h3>
           <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-xs font-medium font-['Poppins']">
             {materials.length} Materi
@@ -673,7 +692,13 @@ function StudentLessonDetail() {
 
         {materials.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
-            <div className="text-6xl mb-4">📚</div>
+            <div className="w-40 h-40 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                loop
+                autoplay
+              />
+            </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Materi</h3>
             <p className="text-sm text-gray-600 font-['Poppins']">
               Guru belum menambahkan materi untuk sub bab ini
@@ -695,14 +720,6 @@ function StudentLessonDetail() {
                 >
                   <div className="p-4">
                     <div className="flex items-center gap-4">
-                      {/* Number Badge */}
-                      <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                        isQuestCompleted 
-                          ? 'bg-green-100' 
-                          : 'bg-blue-50'
-                      }`}>
-                        {getMaterialIcon(material.material_type)}
-                      </div>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
@@ -710,7 +727,7 @@ function StudentLessonDetail() {
                           <span className="text-xs text-gray-500 font-['Poppins']">Materi {index + 1}</span>
                           {isQuestCompleted && (
                             <span className="bg-green-100 text-green-600 text-xs px-2 py-0.5 rounded-full font-medium font-['Poppins']">
-                              ✓ Quest Selesai
+                              Quest Selesai ✓  
                             </span>
                           )}
                         </div>
@@ -727,15 +744,11 @@ function StudentLessonDetail() {
                         {/* Meta info */}
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full font-medium font-['Poppins']">
-                            {material.material_type === 'text' ? '📝 Text' :
-                             material.material_type === 'video' ? '🎥 Video' :
-                             material.material_type === 'pdf' ? '📄 PDF' :
-                             material.material_type === 'link' ? '🔗 Link' :
-                             '📚 ' + material.material_type}
+                            {material.material_type}
                           </span>
                           {quest && (
                             <span className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded-full font-medium font-['Poppins']">
-                              🎯 Ada Quest ({quest.questionCount} soal)
+                              Quest ({quest.questionCount} soal)
                             </span>
                           )}
                         </div>

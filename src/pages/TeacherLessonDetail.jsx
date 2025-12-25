@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 function TeacherLessonDetail() {
@@ -162,7 +163,13 @@ function TeacherLessonDetail() {
     return (
       <TeacherLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-24 h-24">
+            <DotLottieReact
+              src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+              loop
+              autoplay
+            />
+          </div>
         </div>
       </TeacherLayout>
     )
@@ -480,7 +487,13 @@ function MaterialsTab({ materials, quests, onAdd, onEdit, onDelete, getIcon }) {
 
       {materials.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-12 text-center border-2 border-dashed border-gray-200">
-          <div className="text-5xl mb-4">📚</div>
+          <div className="w-40 h-40 mx-auto mb-4">
+            <DotLottieReact
+              src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+              loop
+              autoplay
+            />
+          </div>
           <h4 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Materi</h4>
           <p className="text-gray-600 mb-4">Buat materi pertama untuk sub bab ini</p>
           <button
@@ -588,7 +601,13 @@ function QuestsTab({ quests, materials, onAdd, onEdit, onDelete, getIcon, naviga
         </div>
       ) : quests.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-12 text-center border-2 border-dashed border-gray-200">
-          <div className="text-5xl mb-4">🎯</div>
+          <div className="w-40 h-40 mx-auto mb-4">
+            <DotLottieReact
+              src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+              loop
+              autoplay
+            />
+          </div>
           <h4 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Quest</h4>
           <p className="text-gray-600 mb-4">Buat quest pertama untuk sub bab ini</p>
           <button
@@ -1055,7 +1074,7 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
     coins_reward: 5,
     poin_per_soal: 10,
     difficulty: 'easy',
-    min_points: 60,
+    min_score_to_pass: 60,
     max_attempts: 3,
     time_limit_minutes: null,
     is_published: false
@@ -1074,7 +1093,7 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
         coins_reward: quest.coins_reward || 5,
         poin_per_soal: quest.poin_per_soal || 10,
         difficulty: quest.difficulty || 'easy',
-        min_points: quest.min_points || 60,
+        min_score_to_pass: quest.min_score_to_pass || 60,
         max_attempts: quest.max_attempts || 3,
         time_limit_minutes: quest.time_limit_minutes || null,
         is_published: quest.is_published || false
@@ -1286,14 +1305,16 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
               <p className="text-xs text-gray-500 mt-1">Nilai = benar × poin</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Minimal Poin Lulus</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Minimal Nilai Lulus (%)</label>
               <input
                 type="number"
                 min="0"
-                value={form.min_points}
-                onChange={(e) => setForm({ ...form, min_points: parseInt(e.target.value) || 0 })}
+                max="100"
+                value={form.min_score_to_pass}
+                onChange={(e) => setForm({ ...form, min_score_to_pass: parseInt(e.target.value) || 0 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-black"
               />
+              <p className="text-xs text-gray-500 mt-1">Persentase nilai untuk lulus (0-100)</p>
             </div>
           </div>
 

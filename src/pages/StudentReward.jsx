@@ -12,38 +12,50 @@
  * Status: PLACEHOLDER - To be implemented
  */
 
+import { useNavigate } from 'react-router-dom'
 import StudentLayout from '../components/StudentLayout'
-import UserInfoHeader from '../components/UserInfoHeader'
+import { ComingSoon } from '../components/StateAnimations'
 
 export default function StudentReward() {
+  const navigate = useNavigate()
+
   return (
     <StudentLayout>
-      {/* User Info Header */}
-      <UserInfoHeader />
-
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center max-w-md mx-auto p-8">
-          <div className="bg-gradient-to-br from-purple-400 to-pink-500 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center shadow-2xl">
-            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">
-            🎁 Boutique de Souvenirs
-          </h2>
-          
-          <p className="text-gray-600 mb-6">
-            Toko Suvenir akan segera dibuka! Belanjakan Écus Anda untuk item eksklusif.
-          </p>
+        <div className="text-center max-w-lg mx-auto px-4">
+          <ComingSoon
+            title="Boutique de Souvenirs"
+            description="Toko Suvenir akan segera dibuka! Belanjakan Écus Anda untuk item eksklusif."
+          />
 
-          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4 text-left">
-            <p className="text-sm font-semibold text-purple-900 mb-2">Produk yang akan tersedia:</p>
-            <ul className="text-sm text-purple-800 space-y-1">
-              <li>✨ Bingkai Avatar Premium</li>
-              <li>✨ Tema Profil Eksklusif</li>
-              <li>✨ Badge Khusus</li>
-              <li>✨ Efek Animasi</li>
+          {/* Features Preview */}
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-6 text-left mt-6">
+            <h3 className="font-semibold text-purple-900 mb-3">Produk yang akan tersedia:</h3>
+            <ul className="space-y-2 text-sm text-purple-800">
+              <li className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Bingkai Avatar Premium</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Tema Profil Eksklusif</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Badge Khusus</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Efek Animasi</span>
+              </li>
             </ul>
           </div>
         </div>

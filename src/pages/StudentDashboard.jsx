@@ -127,8 +127,13 @@ function StudentDashboard() {
 
   const fetchStudentData = async () => {
     try {
-      setLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use getSession for faster auth check (cached)
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       // Get profile
       const { data: profileData, error: profileError } = await supabase
@@ -140,12 +145,15 @@ function StudentDashboard() {
       if (profileError) {
         console.error('Error fetching profile:', profileError)
         toast.error('Gagal memuat profil')
+        setLoading(false)
         return
       }
 
       setProfile(profileData)
+      // Set loading false early so UI shows faster
+      setLoading(false)
 
-      // Set basic stats from profile (since student_stats table doesn't exist yet)
+      // Set basic stats from profile
       const xp = profileData?.xp_points || 0
       const level = Math.floor(xp / 100) + 1
       const coins = profileData?.coins || 0
@@ -343,9 +351,12 @@ function StudentDashboard() {
     return (
       <StudentLayout showHeader={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-500">Memuat dashboard...</p>
+          <div className="w-24 h-24">
+            <DotLottieReact
+              src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+              loop
+              autoplay
+            />
           </div>
         </div>
       </StudentLayout>
@@ -403,18 +414,18 @@ function StudentDashboard() {
           </div>
 
           {/* Stats Card (Glassmorphism, floating) */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl p-3 -mb-12 border border-white/20">
-            <div className="flex items-center justify-between gap-2">
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl p-4 -mb-10 border border-white/20">
+            <div className="flex items-center justify-between gap-1">
               {/* Total XP */}
               <div className="flex items-center gap-1.5 flex-1">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-md flex-shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center shadow-md flex-shrink-0">
                   <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <div className="min-w-0">
                   <p className="text-gray-600 text-[9px] font-medium leading-tight">Total XP</p>
-                  <p className="text-orange-600 text-lg font-bold leading-none">{stats.xp}</p>
+                  <p className="text-blue-600 text-lg font-bold leading-none">{stats.xp}</p>
                 </div>
               </div>
 
@@ -423,23 +434,23 @@ function StudentDashboard() {
 
               {/* Total Poin */}
               <div className="flex items-center gap-1.5 flex-1">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-md flex-shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-yellow-500 flex items-center justify-center shadow-md flex-shrink-0">
                   <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-gray-600 text-[9px] font-medium leading-tight">Total Poin</p>
-                  <p className="text-yellow-600 text-lg font-bold leading-none">{stats.coins}</p>
+                  <p className="text-gray-600 text-[9px] font-medium leading-tight">Total Coin</p>
+                  <p className="text-yellow-500 text-lg font-bold leading-none">{stats.coins}</p>
                 </div>
               </div>
 
-              {/* Button Tambah Lagi */}
+              {/* Button Lihat Peringkat */}
               <Link 
-                to="/student/chapters"
+                to="/student/leaderboard"
                 className="bg-[#1E258F] hover:bg-[#161d6f] text-white px-3.5 py-2 rounded-xl font-bold text-[11px] shadow-lg transition flex-shrink-0 whitespace-nowrap"
               >
-                Tambah Lagi
+                Peringkat Saya
               </Link>
             </div>
           </div>
@@ -447,7 +458,7 @@ function StudentDashboard() {
       </div>
 
       {/* Desktop: Keep existing header */}
-      <div className="hidden lg:block -mx-6 -mt-6 mb-8">
+      <div className="hidden lg:block -mx-4 -mt-6 mb-8">
         <div 
           className="px-8 pt-10 pb-24"
           style={{
@@ -499,29 +510,29 @@ function StudentDashboard() {
             <div className="flex items-center justify-between gap-6">
               {/* Total XP */}
               <div className="flex items-center gap-3 flex-1">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-md">
+                <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shadow-md">
                   <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <div>
                   <p className="text-gray-600 text-xs font-medium leading-tight">Total XP</p>
-                  <p className="text-orange-600 text-2xl font-bold leading-none">{stats.xp}</p>
+                  <p className="text-blue-600 text-2xl font-bold leading-none">{stats.xp}</p>
                 </div>
               </div>
 
               {/* Divider */}
               <div className="w-px h-12 bg-gray-200/50"></div>
 
-              {/* Total Poin */}
+              {/* Total Coin */}
               <div className="flex items-center gap-3 flex-1">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-md">
+                <div className="w-12 h-12 rounded-xl bg-yellow-500 flex items-center justify-center shadow-md">
                   <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-xs font-medium leading-tight">Total Poin</p>
+                  <p className="text-gray-600 text-xs font-medium leading-tight">Total Coin</p>
                   <p className="text-yellow-600 text-2xl font-bold leading-none">{stats.coins}</p>
                 </div>
               </div>
@@ -529,12 +540,12 @@ function StudentDashboard() {
               {/* Divider */}
               <div className="w-px h-12 bg-gray-200/50"></div>
 
-              {/* Button Tambah Lagi */}
+              {/* Button Lihat Peringkat */}
               <Link 
-                to="/student/chapters"
+                to="/student/leaderboard"
                 className="bg-[#1E258F] hover:bg-[#161d6f] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg transition flex-shrink-0"
               >
-                Tambah Lagi
+                Peringkat Saya
               </Link>
             </div>
           </div>
@@ -584,7 +595,7 @@ function StudentDashboard() {
       {/* Chapter Kamu Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-gray-900 text-xl font-semibold">Chapter Kamu</h2>
+          <h2 className="text-gray-900 text-xl font-semibold">Pelajaran Kamu</h2>
           <Link 
             to="/student/chapters" 
             className="text-[#4450FF] text-sm font-semibold hover:underline flex items-center gap-1"

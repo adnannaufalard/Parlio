@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 function StudentQuestAnswersDetail() {
@@ -240,7 +241,13 @@ function StudentQuestAnswersDetail() {
       <StudentLayout showHeader={true} showBottomNav={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="w-32 h-32 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+                loop
+                autoplay
+              />
+            </div>
             <p className="text-gray-500 font-['Poppins']">Memuat detail jawaban...</p>
           </div>
         </div>

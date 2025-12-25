@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { uploadQuestMedia, deleteQuestMedia, validateFile, getFileTypeFromMime } from '../lib/uploadHelper'
 import TeacherLayout from '../components/TeacherLayout'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 function TeacherQuestQuestions() {
@@ -227,7 +228,13 @@ function TeacherQuestQuestions() {
 
           {questions.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <div className="text-5xl mb-3">📝</div>
+              <div className="w-40 h-40 mx-auto mb-4">
+                <DotLottieReact
+                  src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
               <p className="text-gray-500 mb-4">Belum ada soal untuk quest ini</p>
               <button
                 onClick={() => {

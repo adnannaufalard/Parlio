@@ -117,13 +117,17 @@ export default function StudentLayout({
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
-  const [studentStats, setStudentStats] = useState({
-    xp: 0,
-    coins: 0,
-    level: 1,
-    currentStreak: 0,
-    fullName: '',
-    userId: ''
+  const [studentStats, setStudentStats] = useState(() => {
+    // Try to get cached stats from sessionStorage for instant display
+    const cached = sessionStorage.getItem('studentStats')
+    if (cached) {
+      try {
+        return JSON.parse(cached)
+      } catch {
+        return { xp: 0, coins: 0, level: 1, currentStreak: 0, fullName: '', userId: '' }
+      }
+    }
+    return { xp: 0, coins: 0, level: 1, currentStreak: 0, fullName: '', userId: '' }
   })
 
   useEffect(() => {
@@ -131,19 +135,20 @@ export default function StudentLayout({
   }, [])
 
   /**
-   * Fetch student stats from database
+   * Fetch student stats from database with caching
    */
   const fetchStudentStats = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use cached session first for faster response
+      const { data: { session } } = await supabase.auth.getSession()
       
-      if (!user) return
+      if (!session?.user) return
 
-      // Fetch from profiles table (student_stats table doesn't exist yet)
+      // Fetch from profiles table
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', user.id)
+        .select('full_name, xp_points, coins')
+        .eq('id', session.user.id)
         .single()
 
       if (error) {
@@ -155,14 +160,18 @@ export default function StudentLayout({
         const xp = profile.xp_points || 0
         const level = Math.floor(xp / 100) + 1
         
-        setStudentStats({
+        const newStats = {
           xp: xp,
           coins: profile.coins || 0,
           level: level,
-          currentStreak: 0, // TODO: implement streak tracking
+          currentStreak: 0,
           fullName: profile.full_name || 'Student',
-          userId: user.id
-        })
+          userId: session.user.id
+        }
+        
+        setStudentStats(newStats)
+        // Cache to sessionStorage for instant load on navigation
+        sessionStorage.setItem('studentStats', JSON.stringify(newStats))
       }
     } catch (error) {
       console.error('Error fetching student stats:', error)
@@ -383,7 +392,7 @@ export default function StudentLayout({
         {/* Top Header - Stats Bar (Mobile Only) */}
         {showHeader && (
           <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm lg:hidden">
-            <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="max-w-7xl mx-auto px-5 py-3">
               <div className="flex items-center justify-between">
                 {/* User Profile - Avatar & Username */}
                 <Link to="/student/profile" className="flex items-center gap-3 group">
@@ -394,7 +403,7 @@ export default function StudentLayout({
                     
                     {/* Avatar container */}
                     <div className="relative h-10 w-10 bg-white rounded-full p-0.5 ring-2 ring-white shadow-lg">
-                      <div className="h-full w-full bg-gradient-to-br from-blue-400 to-purple-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                      <div className="h-full w-full bg-orange-500 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
                         <span className="text-white font-bold text-base">
                           {studentStats.fullName.charAt(0).toUpperCase() || 'S'}
                         </span>
@@ -420,8 +429,8 @@ export default function StudentLayout({
                       </span>
                     </h1>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <div className="flex items-center gap-1 bg-gradient-to-r from-purple-100 to-pink-100 px-1.5 py-0.5 rounded-full">
-                        <span className="text-xs font-bold text-purple-600">Lvl {studentStats.level}</span>
+                      <div className="flex items-center gap-1 bg-blue-100 px-1.5 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-blue-700">Lvl {studentStats.level}</span>
                       </div>
                       <span className="hidden sm:inline text-xs text-gray-400">•</span>
                       <span className="hidden sm:inline text-xs text-gray-500 font-medium">Siswa</span>
@@ -432,14 +441,14 @@ export default function StudentLayout({
               {/* Stats Display */}
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* XP */}
-                <div className="flex items-center gap-1 bg-gradient-to-r from-yellow-100 to-amber-100 text-amber-700 px-2 sm:px-3 py-1.5 rounded-full shadow-sm border border-yellow-200">
+                <div className="flex items-center gap-1 bg-blue-500 text-white px-2 sm:px-3 py-1.5 rounded-full shadow-sm">
                   <Icon name="xp" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="text-xs font-bold">{studentStats.xp}</span>
                   <span className="hidden sm:inline text-xs font-medium">XP</span>
                 </div>
 
                 {/* Coins */}
-                <div className="flex items-center gap-1 bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 px-2 sm:px-3 py-1.5 rounded-full shadow-sm border border-blue-200">
+                <div className="flex items-center gap-1 bg-yellow-500 text-white px-2 sm:px-3 py-1.5 rounded-full shadow-sm">
                   <Icon name="coin" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="text-xs font-bold">{studentStats.coins}</span>
                   <span className="hidden sm:inline text-xs font-medium">Coins</span>
@@ -452,15 +461,6 @@ export default function StudentLayout({
                     <span className="text-xs font-bold">{studentStats.currentStreak}</span>
                   </div>
                 )}
-
-                {/* Logout Button Mobile */}
-                <button 
-                  onClick={handleLogout}
-                  className="flex items-center gap-1 bg-gradient-to-r from-red-100 to-pink-100 text-red-600 px-2 sm:px-3 py-1.5 rounded-full shadow-sm border border-red-200 hover:shadow-md transition-shadow"
-                  title="Logout"
-                >
-                  <Icon name="logout" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </button>
               </div>
             </div>
           </div>
@@ -474,9 +474,9 @@ export default function StudentLayout({
 
         {/* Bottom Navigation Bar - Mobile Only (Capsule Glassmorphism Style) */}
         {showBottomNav && (
-          <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 lg:hidden">
-            <div className="bg-white/40 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full px-3 py-2">
-              <div className="flex items-center gap-2">
+          <nav className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 lg:hidden">
+            <div className="bg-white/50 backdrop-blur-xl border border-white/30 shadow-2xl rounded-full px-4 py-3">
+              <div className="flex items-center gap-3">
                 {/* Show Class Navigation when in class detail page */}
                 {showClassNav ? (
                 classNavItems.map((item) => (
@@ -484,7 +484,7 @@ export default function StudentLayout({
                     key={item.value}
                     onClick={() => onClassTabChange(item.value)}
                     className={`
-                      relative p-2.5 rounded-full transition-all duration-300
+                      relative p-3.5 rounded-full transition-all duration-300
                       ${activeClassTab === item.value
                         ? 'bg-[#4450FF] text-white shadow-lg shadow-blue-500/50 scale-110'
                         : 'text-gray-600 hover:bg-white/80 hover:text-blue-500'
@@ -492,11 +492,11 @@ export default function StudentLayout({
                     `}
                     title={item.label}
                   >
-                    <Icon name={item.icon} className="h-5 w-5" />
+                    <Icon name={item.icon} className="h-6 w-6" />
                     
                     {/* Active indicator dot */}
                     {activeClassTab === item.value && (
-                      <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-lg" />
+                      <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-lg" />
                     )}
                   </button>
                 ))
@@ -508,19 +508,19 @@ export default function StudentLayout({
                     to={item.path}
                     {...(item.badge && { onClick: (e) => e.preventDefault() })}
                     className={`
-                      relative p-2.5 rounded-full transition-all duration-300
+                      relative p-3.5 rounded-full transition-all duration-300
                       ${isActive(item.path)
-                        ? 'bg-[#4450FF] text-white shadow-lg shadow-blue-500/50 scale-110'
+                        ? 'bg-[#1E258F] text-white shadow-lg shadow-blue-500/50 scale-110'
                         : 'text-gray-600 hover:bg-white/80 hover:text-blue-500'
                       }
                       ${item.badge ? 'opacity-40 cursor-not-allowed' : ''}
                     `}
                   >
-                    <Icon name={item.icon} className="h-5 w-5" />
+                    <Icon name={item.icon} className="h-6 w-6" />
                     
                     {/* Active indicator dot */}
                     {isActive(item.path) && (
-                      <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-lg" />
+                      <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-lg" />
                     )}
                     
                     {/* Soon Badge */}

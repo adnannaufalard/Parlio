@@ -11,38 +11,50 @@
  * Status: PLACEHOLDER - To be implemented
  */
 
+import { useNavigate } from 'react-router-dom'
 import StudentLayout from '../components/StudentLayout'
-import UserInfoHeader from '../components/UserInfoHeader'
+import { ComingSoon } from '../components/StateAnimations'
 
 export default function StudentLeaderboard() {
+  const navigate = useNavigate()
+
   return (
     <StudentLayout>
-      {/* User Info Header */}
-      <UserInfoHeader />
-
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center max-w-md mx-auto p-8">
-          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center shadow-2xl">
-            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
-          
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">
-            🏆 Leaderboard
-          </h2>
-          
-          <p className="text-gray-600 mb-6">
-            Halaman peringkat akan segera hadir! Pantau posisi Anda di papan peringkat XP.
-          </p>
+        <div className="text-center max-w-lg mx-auto px-4">
+          <ComingSoon
+            title="Leaderboard"
+            description="Halaman peringkat akan segera hadir! Pantau posisi Anda di papan peringkat XP."
+          />
 
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-left">
-            <p className="text-sm font-semibold text-blue-900 mb-2">Fitur yang akan datang:</p>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>✨ Peringkat berdasarkan XP</li>
-              <li>✨ Filter per kelas</li>
-              <li>✨ Ranking global sekolah</li>
-              <li>✨ Badge untuk Top 3</li>
+          {/* Features Preview */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-left mt-6">
+            <h3 className="font-semibold text-amber-900 mb-3">Fitur yang akan datang:</h3>
+            <ul className="space-y-2 text-sm text-amber-800">
+              <li className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Peringkat berdasarkan XP</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Filter per kelas</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Ranking global sekolah</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Badge untuk Top 3</span>
+              </li>
             </ul>
           </div>
         </div>

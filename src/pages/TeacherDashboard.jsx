@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
+import { LoadingSpinner, EmptyState } from '../components/StateAnimations'
 
 /**
  * Icon component untuk dashboard
@@ -196,10 +197,10 @@ function TeacherDashboard() {
       {/* Activities List */}
       <div className="flex-1 overflow-y-auto p-4">
         {recentActivities.length === 0 ? (
-          <div className="text-center py-8 text-slate-500">
-            <Icon name="time" className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-            <p className="text-sm">Belum ada aktivitas</p>
-          </div>
+          <EmptyState 
+            title="Belum ada aktivitas"
+            description="Aktivitas akan muncul di sini"
+          />
         ) : (
           <div className="space-y-3">
             {recentActivities.map((activity) => (
@@ -235,7 +236,7 @@ function TeacherDashboard() {
     return (
       <TeacherLayout showRightPanel={true} rightPanel={<ActivityPanel />}>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E258F]"></div>
+          <LoadingSpinner size="lg" />
         </div>
       </TeacherLayout>
     )
@@ -362,19 +363,18 @@ function TeacherDashboard() {
 
           <div className="p-5">
             {recentClasses.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Icon name="class" className="h-8 w-8 text-slate-400" />
-                </div>
-                <p className="text-slate-600 font-medium mb-2">Belum ada kelas</p>
-                <p className="text-slate-400 text-sm mb-4">Mulai dengan membuat kelas pertama Anda</p>
-                <button
-                  onClick={() => navigate('/teacher/classes')}
-                  className="bg-[#1E258F] hover:bg-[#1E258F]/90 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
-                >
-                  Buat Kelas Pertama
-                </button>
-              </div>
+              <EmptyState 
+                title="Belum ada kelas"
+                description="Mulai dengan membuat kelas pertama Anda"
+                action={
+                  <button
+                    onClick={() => navigate('/teacher/classes')}
+                    className="bg-[#1E258F] hover:bg-[#1E258F]/90 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
+                  >
+                    Buat Kelas Pertama
+                  </button>
+                }
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {recentClasses.map((classItem) => (

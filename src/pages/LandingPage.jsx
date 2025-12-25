@@ -61,7 +61,7 @@ function LandingPage() {
               {/* Quick Stats */}
               <div className="flex items-center gap-8 pt-6">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-[#1E258F]">A1-A2</div>
+                  <div className="text-2xl font-bold text-[#1E258F]">A1</div>
                   <div className="text-sm text-slate-500">Level DELF</div>
                 </div>
                 <div className="w-px h-10 bg-slate-200"></div>

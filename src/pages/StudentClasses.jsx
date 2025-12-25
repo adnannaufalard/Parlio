@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
-import UserInfoHeader from '../components/UserInfoHeader'
 import toast from 'react-hot-toast'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 
@@ -20,8 +19,13 @@ function StudentClasses() {
 
   const fetchMyClasses = async () => {
     try {
-      setLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use getSession for faster auth check (cached)
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       // Get student's classes
       const { data: classMemberships, error: classError } = await supabase
@@ -44,6 +48,9 @@ function StudentClasses() {
         setLoading(false)
         return
       }
+
+      // Show data immediately
+      setLoading(false)
 
       if (classMemberships) {
         // Get chapter count for each class
@@ -211,7 +218,13 @@ function StudentClasses() {
       <StudentLayout showHeader={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="w-32 h-32 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+                loop
+                autoplay
+              />
+            </div>
             <p className="text-gray-500">Memuat kelas...</p>
           </div>
         </div>
@@ -221,61 +234,47 @@ function StudentClasses() {
 
   return (
     <StudentLayout>
-      {/* User Info Header */}
-      <UserInfoHeader />
-
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-500 via-white to-red-500 rounded-2xl shadow-sm p-[2px] mb-6">
-        <div className="bg-white rounded-[14px] p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-800 mb-1 font-['Poppins']">Kelas Saya 📚</h1>
-              <p className="text-sm text-gray-500 font-['Poppins']">Kelola kelas bahasa Prancis Anda</p>
-            </div>
-            <button
-              onClick={() => setShowJoinModal(true)}
-              className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-sm hover:shadow-md px-4 py-2.5 flex items-center gap-2 transition-all duration-200 font-['Poppins']"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span className="font-medium text-sm">Gabung Kelas</span>
-            </button>
-          </div>
-        </div>
+      {/* Simple Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-lg font-semibold text-gray-800 font-['Poppins']">Daftar Kelas Saya</h1>
+        <button
+          onClick={() => setShowJoinModal(true)}
+          className="bg-[#1E258F] hover:bg-[#161c6e] text-white rounded-lg px-4 py-2 flex items-center gap-2 transition-all duration-200 font-['Poppins']"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          <span className="font-medium text-sm">Gabung Kelas</span>
+        </button>
       </div>
 
       {/* Main Content */}
-      <div className="space-y-5">
-        {/* My Classes */}
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-gray-800 px-1 font-['Poppins']">Daftar Kelas ({myClasses.length})</h2>
-          
-          {myClasses.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
-              <div className="w-64 h-64 mx-auto mb-4">
-                <DotLottieReact
-                  src="https://lottie.host/408beb9d-77b8-4033-bdbe-0d29b68cc833/vzZ2BVnm49.lottie"
-                  loop
-                  autoplay
-                />
-              </div>
-              <h3 className="text-base font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Kelas</h3>
-              <p className="text-sm text-gray-500 font-['Poppins']">
-                Klik tombol "Gabung Kelas Baru" di atas untuk bergabung dengan kelas menggunakan kode dari guru Anda
-              </p>
+      <div className="space-y-4">
+        {myClasses.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
+            <div className="w-64 h-64 mx-auto mb-4">
+              <DotLottieReact
+                src="https://lottie.host/408beb9d-77b8-4033-bdbe-0d29b68cc833/vzZ2BVnm49.lottie"
+                loop
+                autoplay
+              />
             </div>
-          ) : (
-            <div className="space-y-3">
-              {myClasses.map((classItem) => (
-                <div 
-                  key={classItem.id}
-                  className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-5 transition-all duration-200"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-3 font-['Poppins']">{classItem.class_name}</h3>
-                      
+            <h3 className="text-base font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Kelas</h3>
+            <p className="text-sm text-gray-500 font-['Poppins']">
+              Klik tombol "Gabung Kelas" untuk bergabung dengan kelas menggunakan kode dari guru Anda
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {myClasses.map((classItem) => (
+              <div 
+                key={classItem.id}
+                className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-5 transition-all duration-200"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-3 font-['Poppins']">{classItem.class_name}</h3>
+                    
                       <div className="flex items-center gap-4 text-xs text-gray-500 mb-3 font-['Poppins']">
                         <span className="flex items-center gap-1.5">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -308,7 +307,7 @@ function StudentClasses() {
                   <div className="flex gap-2.5">
                     <button
                       onClick={() => navigate(`/student/class/${classItem.id}`)}
-                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors font-['Poppins']"
+                      className="flex-1 bg-[#1E258F] hover:bg-[#161F6F] text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors font-['Poppins']"
                     >
                       Lihat Pelajaran
                     </button>
@@ -321,9 +320,8 @@ function StudentClasses() {
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Join Class Modal */}
@@ -373,9 +371,6 @@ function StudentClasses() {
                   }
                 }}
               />
-              <p className="text-xs text-gray-500 mt-2 font-['Poppins']">
-                Kode kelas biasanya terdiri dari kombinasi huruf dan angka
-              </p>
             </div>
 
             <div className="flex gap-3">
@@ -392,7 +387,7 @@ function StudentClasses() {
               <button
                 onClick={handleJoinClass}
                 disabled={joiningClass || !classCode.trim()}
-                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-['Poppins']"
+                className="flex-1 bg-blue-800 hover:bg-blue-900 text-white font-medium py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-['Poppins']"
               >
                 {joiningClass ? (
                   <span className="flex items-center justify-center gap-2">
@@ -400,7 +395,7 @@ function StudentClasses() {
                     Bergabung...
                   </span>
                 ) : (
-                  'Gabung Sekarang'
+                  'Gabung'
                 )}
               </button>
             </div>

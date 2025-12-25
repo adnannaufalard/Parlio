@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 function StudentQuestDetail() {
@@ -41,7 +42,9 @@ function StudentQuestDetail() {
 
   const fetchAttemptNumber = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use getSession for faster auth check (cached)
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) return
 
       const { data: questData } = await supabase
@@ -141,18 +144,24 @@ function StudentQuestDetail() {
             if (idx !== -1) correctAnswerKey = ['A','B','C','D','E','F'][idx]
           }
 
+          const questionPoints = qq.points_override || qq.question?.points || 10 // Default to 10 if no points set
+          
           return {
             id: qq.id,
             question_text: qq.question?.question_text || '',
             question_type: qq.question?.question_type || '',
             options: parsedOptions,
             correct_answer: correctAnswerKey,
-            points: qq.points_override || qq.question?.points || 0,
+            points: questionPoints,
             question_image_url: qq.question?.question_image_url,
             question_audio_url: qq.question?.question_audio_url,
             question_video_url: qq.question?.question_video_url
           }
         })
+        
+        // Debug log
+        console.log('Questions loaded:', mappedQuestions.map(q => ({ id: q.id, points: q.points })))
+        
         setQuestions(mappedQuestions)
       }
       setLoading(false)
@@ -221,8 +230,15 @@ function StudentQuestDetail() {
         })
       })
 
-      const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0
-      const isPassed = percentage >= (quest?.min_score_to_pass || 70)
+      // Calculate percentage - round to avoid floating point issues
+      const rawPercentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0
+      const percentage = Math.round(rawPercentage * 100) / 100 // Round to 2 decimal places
+      
+      // Check if passed based on percentage
+      const minScoreToPass = quest?.min_score_to_pass || 60
+      const isPassed = percentage >= minScoreToPass
+      
+      console.log('Quest Score Debug:', { totalScore, maxScore, percentage, minScoreToPass, isPassed })
       const xpEarned = isPassed ? (correctAnswers * (quest?.xp_reward || 0)) : 0
       const coinsEarned = isPassed ? (correctAnswers * (quest?.coins_reward || 0)) : 0
 
@@ -230,7 +246,8 @@ function StudentQuestDetail() {
         questId, lessonId: quest?.lesson_id, chapterId: quest?.chapter_id, questTitle: quest?.title || 'Quest',
         score: totalScore, maxScore, percentage, correctAnswers, wrongAnswers,
         totalQuestions: questions.length, timeSpent, xpEarned, coinsEarned,
-        minScoreToPass: quest?.min_score_to_pass || 70, maxAttempts: quest?.max_attempts || 3,
+        minScoreToPass: minScoreToPass,
+        maxAttempts: quest?.max_attempts || 3,
         attemptNumber, passed: isPassed, answersDetail,
         isBetterScore: !window.bestQuestAttempt || totalScore > window.bestQuestAttempt.score,
         previousBestPercentage: window.bestQuestAttempt?.percentage || 0
@@ -290,7 +307,13 @@ function StudentQuestDetail() {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="w-32 h-32 mx-auto mb-4">
+            <DotLottieReact
+              src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
+              loop
+              autoplay
+            />
+          </div>
           <p className="text-gray-500 font-['Poppins']">Memuat quest...</p>
         </div>
       </div>
@@ -503,7 +526,7 @@ function StudentQuestDetail() {
                   disabled={currentQuestion === 0}
                   className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors font-['Poppins']"
                 >
-                  ← Sebelumnya
+                  ←
                 </button>
                 
                 {currentQuestion < questions.length - 1 ? (
@@ -511,7 +534,7 @@ function StudentQuestDetail() {
                     onClick={() => setCurrentQuestion(currentQuestion + 1)}
                     className="px-5 py-2.5 bg-[#1E258F] text-white rounded-lg font-medium hover:bg-[#161d6f] transition-colors font-['Poppins']"
                   >
-                    Selanjutnya →
+                    →
                   </button>
                 ) : (
                   <button
@@ -524,32 +547,6 @@ function StudentQuestDetail() {
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
-        <div className="flex gap-3">
-          <button
-            onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}
-            disabled={currentQuestion === 0}
-            className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium disabled:opacity-50 font-['Poppins']"
-          >
-            ← Prev
-          </button>
-          <button
-            onClick={() => handleSubmit(false)}
-            className="flex-1 py-3 bg-green-500 text-white rounded-lg font-semibold font-['Poppins']"
-          >
-            Submit
-          </button>
-          <button
-            onClick={() => setCurrentQuestion(Math.min(questions.length - 1, currentQuestion + 1))}
-            disabled={currentQuestion === questions.length - 1}
-            className="flex-1 py-3 bg-[#1E258F] text-white rounded-lg font-medium disabled:opacity-50 font-['Poppins']"
-          >
-            Next →
-          </button>
         </div>
       </div>
     </div>

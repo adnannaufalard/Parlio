@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
 const TeacherClassDetail = () => {
@@ -310,7 +311,7 @@ const TeacherClassDetail = () => {
                   <h2 className="text-xl font-semibold text-gray-800">Daftar Siswa ({students.length})</h2>
                   <button
                     onClick={() => setShowAddStudentModal(true)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    className="px-4 py-2 bg-[#1E258F] text-white rounded hover:bg-[#161c6e]"
                   >
                     + Tambah Siswa
                   </button>
@@ -318,13 +319,15 @@ const TeacherClassDetail = () => {
 
                 {students.length === 0 ? (
                   <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <div className="w-32 h-32 mx-auto mb-4">
+                      <DotLottieReact
+                        src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                        loop
+                        autoplay
+                      />
+                    </div>
                     <p className="text-gray-500">Belum ada siswa di kelas ini</p>
-                    <button
-                      onClick={() => setShowAddStudentModal(true)}
-                      className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      Tambah Siswa Pertama
-                    </button>
+                    
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -382,13 +385,13 @@ const TeacherClassDetail = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => navigate('/teacher/quest-builder')}
-                      className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                     >
                       + Buat Pelajaran Baru
                     </button>
                     <button
                       onClick={() => setShowAssignChapterModal(true)}
-                      className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                      className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
                     >
                       + Tambah Pelajaran
                     </button>
@@ -397,25 +400,17 @@ const TeacherClassDetail = () => {
 
                 {chapters.length === 0 ? (
                   <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <div className="text-6xl mb-4">�</div>
+                    <div className="w-40 h-40 mx-auto mb-4">
+                      <DotLottieReact
+                        src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                        loop
+                        autoplay
+                      />
+                    </div>
                     <p className="text-gray-500 mb-4">Belum ada pelajaran yang ditambahkan ke kelas ini</p>
                     <p className="text-sm text-gray-400 mb-6">
                       Buat pelajaran baru atau tambahkan pelajaran yang sudah ada ke kelas ini
                     </p>
-                    <div className="flex gap-3 justify-center">
-                      <button
-                        onClick={() => navigate('/teacher/quest-builder')}
-                        className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
-                      >
-                        Buat Pelajaran Baru
-                      </button>
-                      <button
-                        onClick={() => setShowAssignChapterModal(true)}
-                        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-                      >
-                        Tambah Pelajaran yang Sudah Ada
-                      </button>
-                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
@@ -513,6 +508,13 @@ const TeacherClassDetail = () => {
 
                 {announcements.length === 0 ? (
                   <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <div className="w-32 h-32 mx-auto mb-4">
+                      <DotLottieReact
+                        src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                        loop
+                        autoplay
+                      />
+                    </div>
                     <p className="text-gray-500">Belum ada pengumuman untuk kelas ini</p>
                   </div>
                 ) : (
@@ -566,6 +568,13 @@ const TeacherClassDetail = () => {
 
                 {leaderboard.length === 0 ? (
                   <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <div className="w-32 h-32 mx-auto mb-4">
+                      <DotLottieReact
+                        src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                        loop
+                        autoplay
+                      />
+                    </div>
                     <p className="text-gray-500">Belum ada siswa di kelas ini</p>
                   </div>
                 ) : (
