@@ -58,65 +58,180 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center px-4">
-      <div className="bg-white p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Selamat Datang</h1>
-          <p className="text-gray-600">Masuk ke akun Parlio Anda</p>
+    <div className="min-h-screen bg-white flex">
+      {/* Left Side - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md">
+          {/* Logo */}
+          <div className="mb-8">
+            <button 
+              onClick={() => navigate('/')}
+              className="flex items-center space-x-3 group"
+            >
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-red-500 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3 group-hover:rotate-6 transition-transform">
+                  <span className="text-white font-black text-2xl transform -rotate-3">P</span>
+                </div>
+              </div>
+              <div>
+                <span className="text-gray-900 font-black text-3xl tracking-tight">Parlio</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-black text-gray-900 mb-2">
+              Selamat Datang! 👋
+            </h1>
+            <p className="text-gray-600 text-lg">
+              Masuk ke akun Parlio untuk melanjutkan petualangan belajar bahasa Prancis
+            </p>
+          </div>
+        
+          <form onSubmit={handleLogin} className="space-y-5" autoComplete="off">
+            {/* hidden fields to prevent browser autofill */}
+            <input type="text" name="fakeuser" autoComplete="off" className="hidden" />
+            <input type="password" name="fakepass" autoComplete="new-password" className="hidden" />
+          
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-4 bg-gray-50 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition placeholder:text-gray-400 font-medium"
+                placeholder="nama@email.com"
+              />
+            </div>
+          
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-4 bg-gray-50 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition placeholder:text-gray-400 font-medium"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {error && (
+              <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl">
+                <p className="text-red-600 text-sm font-semibold text-center">{error}</p>
+              </div>
+            )}
+          
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Memuat...</span>
+                </span>
+              ) : (
+                'Masuk ke Akun'
+              )}
+            </button>
+          </form>
+        
+          <div className="mt-8 text-center">
+            <button 
+              onClick={() => navigate('/')}
+              className="text-gray-600 hover:text-gray-900 text-sm font-semibold inline-flex items-center gap-2 group"
+            >
+              <span className="group-hover:-translate-x-1 transition-transform">←</span>
+              <span>Kembali ke Beranda</span>
+            </button>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="mt-10 pt-8 border-t-2 border-gray-100">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-black text-blue-600">1000+</div>
+                <div className="text-xs text-gray-600 font-semibold">Siswa</div>
+              </div>
+              <div>
+                <div className="text-2xl font-black text-red-500">100+</div>
+                <div className="text-xs text-gray-600 font-semibold">Quest</div>
+              </div>
+              <div>
+                <div className="text-2xl font-black text-gray-900">4.9★</div>
+                <div className="text-xs text-gray-600 font-semibold">Rating</div>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <form onSubmit={handleLogin} className="space-y-6" autoComplete="off">
-          {/* hidden fields to prevent browser autofill */}
-          <input type="text" name="fakeuser" autoComplete="off" className="hidden" />
-          <input type="password" name="fakepass" autoComplete="new-password" className="hidden" />
-          
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white text-black border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition placeholder:text-gray-400"
-              placeholder="nama@email.com"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white text-black border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition placeholder:text-gray-400"
-              placeholder="••••••••"
-            />
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Memuat...' : 'Masuk'}
-          </button>
-        </form>
-        
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm text-center">{error}</p>
-          </div>
-        )}
-        
-        <div className="mt-6 text-center">
-          <button 
-            onClick={() => navigate('/')}
-            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-          >
-            ← Kembali ke Beranda
-          </button>
+      </div>
+
+      {/* Right Side - Visual/Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 relative overflow-hidden items-center justify-center p-12">
+        {/* Background Patterns */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)`,
+            backgroundSize: '60px 60px'
+          }}></div>
         </div>
+
+        {/* Content */}
+        <div className="relative z-10 text-center max-w-lg">
+          <div className="mb-8">
+            <div className="text-6xl mb-6 animate-bounce-slow">🇫🇷</div>
+            <h2 className="text-5xl font-black text-white mb-6 leading-tight">
+              Kuasai Bahasa Prancis!
+            </h2>
+            <p className="text-xl text-blue-100 leading-relaxed">
+              Belajar bahasa Prancis dengan sistem gamifikasi yang seru dan interaktif. Setiap pelajaran adalah petualangan baru!
+            </p>
+          </div>
+
+          {/* Feature Highlights */}
+          <div className="space-y-4 mt-12">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border-2 border-white/20">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">🎮</div>
+                <div className="text-left">
+                  <div className="text-white font-bold text-lg">Gamifikasi Penuh</div>
+                  <div className="text-blue-100 text-sm">XP, Level, Coins & Rewards</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border-2 border-white/20">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">📊</div>
+                <div className="text-left">
+                  <div className="text-white font-bold text-lg">Progress Tracking</div>
+                  <div className="text-blue-100 text-sm">Dashboard & Leaderboard Real-time</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border-2 border-white/20">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">🎯</div>
+                <div className="text-left">
+                  <div className="text-white font-bold text-lg">Quest Interaktif</div>
+                  <div className="text-blue-100 text-sm">Berbagai Jenis Soal Menarik</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Decorative Elements */}
+        <div className="absolute top-10 right-10 w-32 h-32 bg-white/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 left-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl"></div>
       </div>
     </div>
   )

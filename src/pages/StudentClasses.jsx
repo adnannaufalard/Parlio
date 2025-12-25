@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
+import UserInfoHeader from '../components/UserInfoHeader'
 import toast from 'react-hot-toast'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 
@@ -220,6 +221,9 @@ function StudentClasses() {
 
   return (
     <StudentLayout>
+      {/* User Info Header */}
+      <UserInfoHeader />
+
       {/* Header Section */}
       <div className="bg-gradient-to-r from-blue-500 via-white to-red-500 rounded-2xl shadow-sm p-[2px] mb-6">
         <div className="bg-white rounded-[14px] p-6">
@@ -289,7 +293,7 @@ function StudentClasses() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                           </svg>
-                          <span className="text-gray-600">{classItem.chapterCount} chapter</span>
+                          <span className="text-gray-600">{classItem.chapterCount} pelajaran</span>
                         </span>
                       </div>
 
@@ -306,7 +310,7 @@ function StudentClasses() {
                       onClick={() => navigate(`/student/class/${classItem.id}`)}
                       className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors font-['Poppins']"
                     >
-                      Lihat Chapter
+                      Lihat Pelajaran
                     </button>
                     <button
                       onClick={() => handleLeaveClass(classItem.id, classItem.class_name)}

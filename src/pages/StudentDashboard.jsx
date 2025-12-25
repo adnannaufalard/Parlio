@@ -605,7 +605,7 @@ function StudentDashboard() {
                 className={`bg-white rounded-xl shadow-md border border-gray-100 p-4 flex-shrink-0 w-[280px] ${
                   chapter.isLocked ? 'opacity-60' : 'hover:shadow-lg cursor-pointer'
                 } transition`}
-                onClick={() => !chapter.isLocked && navigate(`/student/chapter/${chapter.id}`)}
+                onClick={() => !chapter.isLocked && navigate(`/student/chapters/${chapter.id}`)}
               >
                 {/* Icon & Title */}
                 <div className="flex items-start gap-3 mb-3">

@@ -8,17 +8,12 @@ const TeacherClassDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('students')
   const [classData, setClassData] = useState(null)
   const [students, setStudents] = useState([])
   const [chapters, setChapters] = useState([])
   const [announcements, setAnnouncements] = useState([])
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalChapters: 0,
-    totalLessons: 0,
-    totalQuests: 0
-  })
+  const [leaderboard, setLeaderboard] = useState([])
   
   // Modals
   const [showAddStudentModal, setShowAddStudentModal] = useState(false)
@@ -30,11 +25,11 @@ const TeacherClassDetail = () => {
     fetchClassData()
     fetchStudents()
     fetchChapters()
-    fetchStats()
   }, [id])
 
   useEffect(() => {
     if (activeTab === 'announcements') fetchAnnouncements()
+    if (activeTab === 'leaderboard') fetchLeaderboard()
   }, [activeTab])
 
   const fetchClassData = async () => {
@@ -134,31 +129,43 @@ const TeacherClassDetail = () => {
       setChapters(chaptersWithStats)
     } catch (error) {
       console.error('Error fetching chapters:', error)
-      toast.error('Gagal memuat chapter')
+      toast.error('Gagal memuat pelajaran')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const fetchStats = async () => {
+  const fetchLeaderboard = async () => {
     try {
-      // Calculate stats from chapters
-      let totalLessons = 0
-      let totalQuests = 0
+      // Fetch students with XP and coins for leaderboard
+      const { data, error } = await supabase
+        .from('class_members')
+        .select(`
+          student_id,
+          joined_at,
+          student:profiles!class_members_student_id_fkey (
+            id,
+            full_name,
+            avatar_url,
+            xp_points,
+            coins
+          )
+        `)
+        .eq('class_id', id)
 
-      chapters.forEach(ch => {
-        totalLessons += ch.lesson_count || 0
-        totalQuests += ch.quest_count || 0
-      })
+      if (error) throw error
 
-      setStats({
-        totalStudents: students.length,
-        totalChapters: chapters.length,
-        totalLessons,
-        totalQuests
-      })
+      // Sort by XP points descending
+      const sortedLeaderboard = (data || [])
+        .map(item => ({
+          ...item.student,
+          joined_at: item.joined_at
+        }))
+        .sort((a, b) => (b.xp_points || 0) - (a.xp_points || 0))
+
+      setLeaderboard(sortedLeaderboard)
     } catch (error) {
-      console.error('Error fetching stats:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error fetching leaderboard:', error)
     }
   }
 
@@ -189,7 +196,6 @@ const TeacherClassDetail = () => {
 
       toast.success('Siswa berhasil dihapus dari kelas')
       fetchStudents()
-      fetchStats()
       setStudentToRemove(null)
     } catch (error) {
       console.error('Error removing student:', error)
@@ -207,12 +213,11 @@ const TeacherClassDetail = () => {
 
       if (error) throw error
 
-      toast.success('Chapter berhasil dihapus dari kelas')
+      toast.success('Pelajaran berhasil dihapus dari kelas')
       fetchChapters()
-      fetchStats()
     } catch (error) {
       console.error('Error removing chapter:', error)
-      toast.error('Gagal menghapus chapter')
+      toast.error('Gagal menghapus pelajaran')
     }
   }
 
@@ -268,26 +273,6 @@ const TeacherClassDetail = () => {
               ← Kembali
             </button>
           </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="text-sm text-blue-600 font-medium">Total Siswa</div>
-              <div className="text-2xl font-bold text-blue-700 mt-1">{stats.totalStudents}</div>
-            </div>
-            <div className="bg-purple-50 rounded-lg p-4">
-              <div className="text-sm text-purple-600 font-medium">Total Chapter</div>
-              <div className="text-2xl font-bold text-purple-700 mt-1">{stats.totalChapters}</div>
-            </div>
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="text-sm text-green-600 font-medium">Total Pelajaran</div>
-              <div className="text-2xl font-bold text-green-700 mt-1">{stats.totalLessons}</div>
-            </div>
-            <div className="bg-orange-50 rounded-lg p-4">
-              <div className="text-sm text-orange-600 font-medium">Total Quest</div>
-              <div className="text-2xl font-bold text-orange-700 mt-1">{stats.totalQuests}</div>
-            </div>
-          </div>
         </div>
 
         {/* Tabs */}
@@ -295,10 +280,10 @@ const TeacherClassDetail = () => {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
               {[
-                { key: 'overview', label: 'Ringkasan', icon: '📊' },
                 { key: 'students', label: 'Siswa', icon: '👥' },
-                { key: 'chapters', label: 'Chapter', icon: '�' },
-                { key: 'announcements', label: 'Pengumuman', icon: '📢' }
+                { key: 'chapters', label: 'Pelajaran', icon: '📚' },
+                { key: 'announcements', label: 'Pengumuman', icon: '📢' },
+                { key: 'leaderboard', label: 'Leaderboard', icon: '🏆' }
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -318,99 +303,6 @@ const TeacherClassDetail = () => {
 
           {/* Tab Content */}
           <div className="p-6">
-            {/* Overview Tab */}
-            {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-800">Ringkasan Kelas</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Recent Activity */}
-                  <div className="border rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-700 mb-3">Aktivitas Terbaru</h3>
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <p>• {students.length} siswa terdaftar</p>
-                      <p>• {chapters.length} chapter telah ditambahkan</p>
-                      <p>• {stats.totalQuests} quest tersedia</p>
-                      <p>• Kelas dibuat pada {new Date(classData.created_at).toLocaleDateString('id-ID')}</p>
-                    </div>
-                  </div>
-
-                  {/* Quick Actions */}
-                  <div className="border rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-700 mb-3">Aksi Cepat</h3>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => setActiveTab('students')}
-                        className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                      >
-                        + Tambah Siswa
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('chapters')}
-                        className="w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
-                      >
-                        + Assign Chapter
-                      </button>
-                      <button
-                        onClick={() => setShowAnnouncementModal(true)}
-                        className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
-                      >
-                        + Buat Pengumuman
-                      </button>
-                      <button
-                        onClick={() => navigate('/teacher/quest-builder')}
-                        className="w-full px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-sm"
-                      >
-                        🗼 Buat Chapter Baru
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Chapter Overview */}
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-700 mb-3">Chapter yang Ditambahkan</h3>
-                  {chapters.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 rounded">
-                      <p className="text-gray-500 mb-3">Belum ada chapter yang ditambahkan ke kelas ini</p>
-                      <button
-                        onClick={() => setActiveTab('chapters')}
-                        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
-                      >
-                        Assign Chapter Sekarang
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {chapters.slice(0, 6).map((item) => (
-                        <div key={item.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">{item.chapter.icon || '🗼'}</span>
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-sm text-gray-800">{item.chapter.title}</h4>
-                              <p className="text-xs text-gray-500">Lantai {item.chapter.floor_number}</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2 text-xs text-gray-600">
-                            <span>📚 {item.lesson_count} lessons</span>
-                            <span>⚔️ {item.quest_count} quests</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {chapters.length > 6 && (
-                    <button
-                      onClick={() => setActiveTab('chapters')}
-                      className="mt-3 text-sm text-blue-600 hover:text-blue-700"
-                    >
-                      Lihat semua {chapters.length} chapter →
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Students Tab */}
             {activeTab === 'students' && (
               <div className="space-y-4">
@@ -486,42 +378,42 @@ const TeacherClassDetail = () => {
             {activeTab === 'chapters' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-800">Chapter yang Ditambahkan ({chapters.length})</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">Pelajaran yang Ditambahkan ({chapters.length})</h2>
                   <div className="flex gap-2">
                     <button
                       onClick={() => navigate('/teacher/quest-builder')}
                       className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
                     >
-                      🗼 Buat Chapter Baru
+                      + Buat Pelajaran Baru
                     </button>
                     <button
                       onClick={() => setShowAssignChapterModal(true)}
                       className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
                     >
-                      + Assign Chapter
+                      + Tambah Pelajaran
                     </button>
                   </div>
                 </div>
 
                 {chapters.length === 0 ? (
                   <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <div className="text-6xl mb-4">🗼</div>
-                    <p className="text-gray-500 mb-4">Belum ada chapter yang ditambahkan ke kelas ini</p>
+                    <div className="text-6xl mb-4">�</div>
+                    <p className="text-gray-500 mb-4">Belum ada pelajaran yang ditambahkan ke kelas ini</p>
                     <p className="text-sm text-gray-400 mb-6">
-                      Buat chapter di Quest Builder, lalu assign ke kelas ini
+                      Buat pelajaran baru atau tambahkan pelajaran yang sudah ada ke kelas ini
                     </p>
                     <div className="flex gap-3 justify-center">
                       <button
                         onClick={() => navigate('/teacher/quest-builder')}
                         className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
                       >
-                        Buat Chapter Baru
+                        Buat Pelajaran Baru
                       </button>
                       <button
                         onClick={() => setShowAssignChapterModal(true)}
                         className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
                       >
-                        Assign Chapter yang Sudah Ada
+                        Tambah Pelajaran yang Sudah Ada
                       </button>
                     </div>
                   </div>
@@ -538,13 +430,10 @@ const TeacherClassDetail = () => {
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex items-start gap-4 flex-1">
-                            <div className="text-5xl">{item.chapter.icon || '🗼'}</div>
+                            <div className="text-5xl">{item.chapter.icon || '�'}</div>
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-xl font-bold text-gray-800">{item.chapter.title}</h3>
-                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                                  Lantai {item.chapter.floor_number}
-                                </span>
                                 {item.chapter.is_published ? (
                                   <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                                     ✓ Published
@@ -592,7 +481,7 @@ const TeacherClassDetail = () => {
                             </button>
                             <button
                               onClick={() => {
-                                if (confirm(`Hapus chapter "${item.chapter.title}" dari kelas ini?`)) {
+                                if (confirm(`Hapus pelajaran "${item.chapter.title}" dari kelas ini?`)) {
                                   handleRemoveChapter(item.id)
                                 }
                               }}
@@ -661,6 +550,128 @@ const TeacherClassDetail = () => {
                 )}
               </div>
             )}
+
+            {/* Leaderboard Tab */}
+            {activeTab === 'leaderboard' && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-gray-800">Leaderboard Kelas</h2>
+                  <button
+                    onClick={fetchLeaderboard}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded hover:bg-gray-50"
+                  >
+                    🔄 Refresh
+                  </button>
+                </div>
+
+                {leaderboard.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">Belum ada siswa di kelas ini</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Top 3 Podium */}
+                    {leaderboard.length >= 3 && (
+                      <div className="flex justify-center items-end gap-4 py-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl mb-6">
+                        {/* 2nd Place */}
+                        <div className="text-center">
+                          <div className="w-16 h-16 mx-auto bg-gray-300 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-2 border-4 border-gray-400">
+                            {leaderboard[1]?.avatar_url ? (
+                              <img src={leaderboard[1].avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              leaderboard[1]?.full_name?.charAt(0) || '?'
+                            )}
+                          </div>
+                          <div className="text-2xl">🥈</div>
+                          <p className="font-semibold text-gray-800 text-sm truncate max-w-[100px]">{leaderboard[1]?.full_name}</p>
+                          <p className="text-xs text-blue-600 font-bold">{leaderboard[1]?.xp_points || 0} XP</p>
+                        </div>
+                        
+                        {/* 1st Place */}
+                        <div className="text-center -mt-4">
+                          <div className="w-20 h-20 mx-auto bg-yellow-400 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-2 border-4 border-yellow-500 shadow-lg">
+                            {leaderboard[0]?.avatar_url ? (
+                              <img src={leaderboard[0].avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              leaderboard[0]?.full_name?.charAt(0) || '?'
+                            )}
+                          </div>
+                          <div className="text-3xl">🥇</div>
+                          <p className="font-bold text-gray-800 truncate max-w-[120px]">{leaderboard[0]?.full_name}</p>
+                          <p className="text-sm text-blue-600 font-bold">{leaderboard[0]?.xp_points || 0} XP</p>
+                        </div>
+                        
+                        {/* 3rd Place */}
+                        <div className="text-center">
+                          <div className="w-16 h-16 mx-auto bg-amber-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-2 border-4 border-amber-700">
+                            {leaderboard[2]?.avatar_url ? (
+                              <img src={leaderboard[2].avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              leaderboard[2]?.full_name?.charAt(0) || '?'
+                            )}
+                          </div>
+                          <div className="text-2xl">🥉</div>
+                          <p className="font-semibold text-gray-800 text-sm truncate max-w-[100px]">{leaderboard[2]?.full_name}</p>
+                          <p className="text-xs text-blue-600 font-bold">{leaderboard[2]?.xp_points || 0} XP</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Full Leaderboard Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Siswa</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">XP Points</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coins</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {leaderboard.map((student, index) => (
+                            <tr key={student.id} className={`hover:bg-gray-50 ${index < 3 ? 'bg-yellow-50' : ''}`}>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                                  index === 0 ? 'bg-yellow-400 text-white' :
+                                  index === 1 ? 'bg-gray-300 text-gray-700' :
+                                  index === 2 ? 'bg-amber-600 text-white' :
+                                  'bg-gray-100 text-gray-600'
+                                }`}>
+                                  {index + 1}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
+                                    {student.avatar_url ? (
+                                      <img src={student.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                                    ) : (
+                                      student.full_name?.charAt(0) || '?'
+                                    )}
+                                  </div>
+                                  <span className="font-medium text-gray-800">{student.full_name}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
+                                  ⭐ {student.xp_points || 0}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="px-3 py-1 text-sm font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                  🪙 {student.coins || 0}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -672,7 +683,6 @@ const TeacherClassDetail = () => {
           onClose={() => setShowAddStudentModal(false)}
           onSuccess={() => {
             fetchStudents()
-            fetchStats()
           }}
         />
       )}
@@ -685,7 +695,6 @@ const TeacherClassDetail = () => {
           onClose={() => setShowAssignChapterModal(false)}
           onSuccess={() => {
             fetchChapters()
-            fetchStats()
             setShowAssignChapterModal(false)
           }}
         />
@@ -744,23 +753,21 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
 
   const fetchAvailableChapters = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      // Get chapters created by this teacher that are not already assigned
+      // Get all available chapters
       const { data, error } = await supabase
         .from('chapters')
         .select('*')
-        .eq('created_by', user.id)
         .order('floor_number', { ascending: true })
 
       if (error) throw error
 
       // Filter out chapters already assigned to this class
       const filtered = (data || []).filter(ch => !existingChapterIds.includes(ch.id))
+      
       setAvailableChapters(filtered)
     } catch (error) {
       console.error('Error fetching chapters:', error)
-      toast.error('Gagal memuat chapter')
+      toast.error('Gagal memuat pelajaran')
     }
   }
 
@@ -774,7 +781,7 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
 
   const handleAssign = async () => {
     if (selectedChapters.length === 0) {
-      toast.error('Pilih minimal 1 chapter')
+      toast.error('Pilih minimal 1 pelajaran')
       return
     }
 
@@ -796,11 +803,11 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
 
       if (error) throw error
 
-      toast.success(`${selectedChapters.length} chapter berhasil ditambahkan`)
+      toast.success(`${selectedChapters.length} pelajaran berhasil ditambahkan`)
       onSuccess()
     } catch (error) {
       console.error('Error assigning chapters:', error)
-      toast.error('Gagal menambahkan chapter')
+      toast.error('Gagal menambahkan pelajaran')
     } finally {
       setLoading(false)
     }
@@ -810,17 +817,17 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
         <div className="p-6 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">Assign Chapter ke Kelas</h3>
-          <p className="text-sm text-gray-500 mt-1">Pilih chapter yang ingin ditambahkan ke kelas ini</p>
+          <h3 className="text-lg font-semibold text-gray-900">Tambah Pelajaran ke Kelas</h3>
+          <p className="text-sm text-gray-500 mt-1">Pilih pelajaran yang ingin ditambahkan ke kelas ini</p>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6">
           {availableChapters.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-5xl mb-3">🗼</div>
-              <p className="text-gray-500 mb-4">Tidak ada chapter yang tersedia</p>
+              <div className="text-5xl mb-3">�</div>
+              <p className="text-gray-500 mb-4">Tidak ada pelajaran yang tersedia</p>
               <p className="text-sm text-gray-400 mb-6">
-                Buat chapter baru di Quest Builder terlebih dahulu
+                Buat pelajaran baru terlebih dahulu
               </p>
               <button
                 onClick={() => {
@@ -829,7 +836,7 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
                 }}
                 className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
               >
-                Buka Quest Builder
+                Buat Pelajaran
               </button>
             </div>
           ) : (
@@ -851,13 +858,10 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
                       onChange={() => handleToggleChapter(chapter.id)}
                       className="mt-1 h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                     />
-                    <div className="text-3xl">{chapter.icon || '🗼'}</div>
+                    <div className="text-3xl">{chapter.icon || '�'}</div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-semibold text-gray-800">{chapter.title}</h4>
-                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                          Lantai {chapter.floor_number}
-                        </span>
                         {chapter.is_published && (
                           <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                             Published
@@ -878,7 +882,7 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
             <div className="text-sm text-gray-600">
               {selectedChapters.length > 0 && (
                 <span className="font-semibold text-purple-600">
-                  {selectedChapters.length} chapter dipilih
+                  {selectedChapters.length} pelajaran dipilih
                 </span>
               )}
             </div>
@@ -894,7 +898,7 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
                 disabled={loading || selectedChapters.length === 0}
                 className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-300"
               >
-                {loading ? 'Menambahkan...' : `Assign ${selectedChapters.length} Chapter`}
+                {loading ? 'Menambahkan...' : `Tambah ${selectedChapters.length} Pelajaran`}
               </button>
             </div>
           </div>

@@ -1,16 +1,30 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
 import toast from 'react-hot-toast'
 
+// Color palette matching Quest Builder
+const bgColors = [
+  'from-blue-500 to-indigo-600',
+  'from-green-500 to-teal-600',
+  'from-purple-500 to-pink-600',
+  'from-orange-500 to-red-600',
+  'from-cyan-500 to-blue-600',
+]
+
 function TeacherChapterDetail() {
   const { chapterId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  
+  // Get color index from navigation state, default to 0
+  const colorIndex = location.state?.colorIndex || 0
+  const bgColor = bgColors[colorIndex % bgColors.length]
+  
   const [chapter, setChapter] = useState(null)
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('lessons') // 'lessons' or 'settings'
   const [showLessonModal, setShowLessonModal] = useState(false)
   const [editingLesson, setEditingLesson] = useState(null)
 
@@ -32,13 +46,13 @@ function TeacherChapterDetail() {
       if (chapterError) throw chapterError
       setChapter(chapterData)
 
-      // Fetch lessons
+      // Fetch lessons with materials and quests details
       const { data: lessonsData, error: lessonsError } = await supabase
         .from('lessons')
         .select(`
           *,
-          quests:quests(count),
-          materials:lesson_materials(count)
+          quests:quests(id, title, xp_reward),
+          materials:lesson_materials(id, title, material_type)
         `)
         .eq('chapter_id', chapterId)
         .order('lesson_order', { ascending: true })
@@ -48,7 +62,7 @@ function TeacherChapterDetail() {
 
     } catch (error) {
       console.error('Error fetching chapter data:', error)
-      toast.error('Gagal memuat data chapter')
+      toast.error('Gagal memuat data pelajaran')
     } finally {
       setLoading(false)
     }
@@ -65,7 +79,7 @@ function TeacherChapterDetail() {
   }
 
   const handleDeleteLesson = async (lessonId) => {
-    if (!confirm('Yakin ingin menghapus lesson ini? Semua quests dan materials akan terhapus.')) return
+    if (!confirm('Yakin ingin menghapus sub bab ini? Semua quest dan materi akan terhapus.')) return
 
     try {
       const { error } = await supabase
@@ -74,12 +88,18 @@ function TeacherChapterDetail() {
         .eq('id', lessonId)
 
       if (error) throw error
-      toast.success('Lesson berhasil dihapus')
+      toast.success('Sub bab berhasil dihapus')
       fetchChapterData()
     } catch (error) {
       console.error('Error deleting lesson:', error)
-      toast.error('Gagal menghapus lesson')
+      toast.error('Gagal menghapus sub bab')
     }
+  }
+
+  const goToLessonDetail = (lessonId) => {
+    navigate(`/teacher/quest-builder/lesson/${lessonId}`, {
+      state: { colorIndex }
+    })
   }
 
   if (loading) {
@@ -96,7 +116,7 @@ function TeacherChapterDetail() {
     return (
       <TeacherLayout>
         <div className="text-center py-12">
-          <p className="text-gray-600">Chapter tidak ditemukan</p>
+          <p className="text-gray-600">Pelajaran tidak ditemukan</p>
           <button
             onClick={() => navigate('/teacher/quest-builder')}
             className="mt-4 text-blue-600 hover:text-blue-700"
@@ -108,149 +128,165 @@ function TeacherChapterDetail() {
     )
   }
 
+  const totalMaterials = lessons.reduce((sum, l) => sum + (l.materials?.length || 0), 0)
+  const totalQuests = lessons.reduce((sum, l) => sum + (l.quests?.length || 0), 0)
+
   return (
     <TeacherLayout>
       <div className="p-6 space-y-6">
-        {/* Back Button & Header */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/teacher/quest-builder')}
-            className="p-2 hover:bg-gray-100 rounded-md transition"
-          >
-            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">Lantai {chapter.floor_number}: {chapter.title}</h1>
-            <p className="text-gray-600 mt-1">{chapter.description || 'Tidak ada deskripsi'}</p>
-          </div>
-        </div>
+        {/* Header Card with Dynamic Gradient Color */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className={`bg-gradient-to-r ${bgColor} p-6 text-white`}>
+            {/* Back Button */}
+            <button
+              onClick={() => navigate('/teacher/quest-builder')}
+              className="flex items-center gap-2 text-white/80 hover:text-white transition mb-4"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="text-sm font-medium">Kembali</span>
+            </button>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Lessons</p>
-                <p className="text-2xl font-bold text-gray-900">{lessons.length}</p>
-              </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Quests</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {lessons.reduce((sum, l) => sum + (l.quests?.[0]?.count || 0), 0)}
-                </p>
-              </div>
-              <div className="bg-green-100 rounded-full p-3">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Materials</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {lessons.reduce((sum, l) => sum + (l.materials?.[0]?.count || 0), 0)}
-                </p>
-              </div>
-              <div className="bg-purple-100 rounded-full p-3">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              <button
-                onClick={() => setActiveTab('lessons')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition ${
-                  activeTab === 'lessons'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Lessons & Quests
-              </button>
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition ${
-                  activeTab === 'settings'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Settings
-              </button>
-            </nav>
-          </div>
-
-          <div className="p-6">
-            {activeTab === 'lessons' ? (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Daftar Lessons</h3>
-                  <button
-                    onClick={handleCreateLesson}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition text-sm"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Tambah Lesson
-                  </button>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  {chapter.is_published ? (
+                    <span className="text-xs bg-green-500 px-2 py-1 rounded-full">Published</span>
+                  ) : (
+                    <span className="text-xs bg-yellow-500 px-2 py-1 rounded-full">Draft</span>
+                  )}
                 </div>
+                <h1 className="text-2xl font-bold mb-2">{chapter.title}</h1>
+                <p className="text-white/90 text-sm">{chapter.description || 'Tidak ada deskripsi'}</p>
+              </div>
+              <div className="text-4xl ml-4">📚</div>
+            </div>
 
-                {lessons.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <div className="text-5xl mb-4">📚</div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Lesson</h4>
-                    <p className="text-gray-600 mb-4">Mulai buat lesson pertama untuk chapter ini</p>
-                    <button
-                      onClick={handleCreateLesson}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
-                    >
-                      Buat Lesson Pertama
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {lessons.map((lesson) => (
-                      <LessonCard
-                        key={lesson.id}
-                        lesson={lesson}
-                        onEdit={() => handleEditLesson(lesson)}
-                        onDelete={() => handleDeleteLesson(lesson.id)}
-                        onManageQuests={() => navigate(`/teacher/quest-builder/lesson/${lesson.id}`)}
-                      />
-                    ))}
-                  </div>
-                )}
+            {/* Stats Row */}
+            <div className="mt-6 grid grid-cols-3 gap-4">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold">{lessons.length}</p>
+                <p className="text-xs text-white/80">Sub Bab</p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Chapter Settings</h3>
-                <p className="text-gray-600">Settings untuk chapter akan ditampilkan di sini</p>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold">{totalMaterials}</p>
+                <p className="text-xs text-white/80">Materi</p>
               </div>
-            )}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold">{totalQuests}</p>
+                <p className="text-xs text-white/80">Quest</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sub Bab List - Simplified */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-gray-900">Daftar Sub Bab</h2>
+            <button
+              onClick={handleCreateLesson}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Tambah Sub Bab
+            </button>
+          </div>
+
+          {lessons.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-12 text-center">
+              <div className="text-5xl mb-4">📝</div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Sub Bab</h4>
+              <p className="text-gray-600 mb-4">Buat sub bab pertama untuk pelajaran ini</p>
+              <button
+                onClick={handleCreateLesson}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                Buat Sub Bab Pertama
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {lessons.map((lesson, idx) => (
+                <div 
+                  key={lesson.id} 
+                  className="bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer border border-transparent hover:border-blue-200"
+                  onClick={() => goToLessonDetail(lesson.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${bgColor} flex items-center justify-center text-white font-bold text-lg`}>
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{lesson.title}</h3>
+                        {lesson.description && (
+                          <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{lesson.description}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                          <span className="flex items-center gap-1">
+                            <span className="text-green-600">📚</span> {lesson.materials?.length || 0} Materi
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-purple-600">🎯</span> {lesson.quests?.length || 0} Quest
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-blue-600">⏱️</span> {lesson.estimated_duration} mnt
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {lesson.is_published ? (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Published</span>
+                      ) : (
+                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Draft</span>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEditLesson(lesson) }}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Sub Bab"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteLesson(lesson.id) }}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title="Hapus Sub Bab"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Info Box - Learning Flow */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">💡</div>
+            <div>
+              <h4 className="font-medium text-blue-900 mb-1">Alur Pembelajaran Siswa</h4>
+              <p className="text-sm text-blue-700">
+                Siswa akan <strong>membaca materi terlebih dahulu</strong>, kemudian setelah selesai baru bisa <strong>mengerjakan quest/tugas</strong>. 
+                Pastikan materi sudah lengkap sebelum menambahkan quest.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -273,72 +309,6 @@ function TeacherChapterDetail() {
         />
       )}
     </TeacherLayout>
-  )
-}
-
-// Lesson Card Component
-function LessonCard({ lesson, onEdit, onDelete, onManageQuests }) {
-  return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded">
-              Lesson {lesson.lesson_order}
-            </span>
-            {lesson.is_published ? (
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Published</span>
-            ) : (
-              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Draft</span>
-            )}
-            <span className="text-xs text-gray-500">~{lesson.estimated_duration} menit</span>
-          </div>
-          
-          <h4 className="text-lg font-semibold text-gray-900 mb-1">{lesson.title}</h4>
-          <p className="text-sm text-gray-600 mb-3">{lesson.description || 'Tidak ada deskripsi'}</p>
-          
-          <div className="flex items-center gap-4 text-xs text-gray-600">
-            <span className="flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {lesson.quests?.[0]?.count || 0} Quests
-            </span>
-            <span className="flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              {lesson.materials?.[0]?.count || 0} Materials
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 ml-4">
-          <button
-            onClick={onManageQuests}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition"
-          >
-            Kelola
-          </button>
-          <button
-            onClick={onEdit}
-            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -383,7 +353,7 @@ function LessonModal({ chapterId, lesson, lessonCount, onClose, onSuccess }) {
           .eq('id', lesson.id)
 
         if (error) throw error
-        toast.success('Lesson berhasil diupdate')
+        toast.success('Sub bab berhasil diupdate')
       } else {
         // Create
         const { error } = await supabase
@@ -394,13 +364,13 @@ function LessonModal({ chapterId, lesson, lessonCount, onClose, onSuccess }) {
           }])
 
         if (error) throw error
-        toast.success('Lesson berhasil dibuat')
+        toast.success('Sub bab berhasil dibuat')
       }
 
       onSuccess()
     } catch (error) {
       console.error('Error saving lesson:', error)
-      toast.error('Gagal menyimpan lesson')
+      toast.error('Gagal menyimpan sub bab')
     } finally {
       setLoading(false)
     }
@@ -410,14 +380,14 @@ function LessonModal({ chapterId, lesson, lessonCount, onClose, onSuccess }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
         <h3 className="text-xl font-bold text-gray-900 mb-4">
-          {lesson ? 'Edit Lesson' : 'Buat Lesson Baru'}
+          {lesson ? 'Edit Sub Bab' : 'Buat Sub Bab Baru'}
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Urutan Lesson <span className="text-red-500">*</span>
+                Urutan <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -445,7 +415,7 @@ function LessonModal({ chapterId, lesson, lessonCount, onClose, onSuccess }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Judul Lesson <span className="text-red-500">*</span>
+              Judul Sub Bab <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -495,7 +465,7 @@ function LessonModal({ chapterId, lesson, lessonCount, onClose, onSuccess }) {
               className="w-4 h-4 text-blue-600 rounded"
             />
             <label htmlFor="is_published" className="text-sm font-medium text-gray-700">
-              Publish lesson (siswa dapat mengakses)
+              Publish sub bab (siswa dapat mengakses)
             </label>
           </div>
 
@@ -513,7 +483,7 @@ function LessonModal({ chapterId, lesson, lessonCount, onClose, onSuccess }) {
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:opacity-50"
               disabled={loading}
             >
-              {loading ? 'Menyimpan...' : lesson ? 'Update Lesson' : 'Buat Lesson'}
+              {loading ? 'Menyimpan...' : lesson ? 'Update Sub Bab' : 'Buat Sub Bab'}
             </button>
           </div>
         </form>

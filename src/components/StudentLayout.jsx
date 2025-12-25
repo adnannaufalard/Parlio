@@ -4,8 +4,10 @@
  * Mobile-First Design dengan Bottom Navigation sesuai blueprint Parlio
  * 
  * Features:
+ * - Collapsible Sidebar (icon-only / expanded)
  * - Bottom Navigation Bar untuk mobile-first experience
  * - Menu: Dashboard, Kelas, Leaderboard, Reward, Profile
+ * - Logout functionality
  * - Responsive design (mobile-first)
  * - Active state highlighting
  * - XP & Coins display di header
@@ -16,6 +18,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import toast from 'react-hot-toast'
 
 /**
  * Icon component untuk render SVG icons
@@ -48,9 +51,19 @@ function Icon({ name, className = "h-6 w-6" }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
-    eiffel: (
+    announcement: (
       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+      </svg>
+    ),
+    members: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+    forum: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
       </svg>
     ),
     xp: (
@@ -61,6 +74,21 @@ function Icon({ name, className = "h-6 w-6" }) {
     coin: (
       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    logout: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      </svg>
+    ),
+    expand: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+      </svg>
+    ),
+    collapse: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
       </svg>
     )
   }
@@ -83,11 +111,12 @@ export default function StudentLayout({
   showHeader = true,
   showBottomNav = true,
   showClassNav = false, 
-  activeClassTab = 'chapter',
+  activeClassTab = 'pelajaran',
   onClassTabChange = () => {}
 }) {
   const location = useLocation()
   const navigate = useNavigate()
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [studentStats, setStudentStats] = useState({
     xp: 0,
     coins: 0,
@@ -141,6 +170,20 @@ export default function StudentLayout({
   }
 
   /**
+   * Handle logout
+   */
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      toast.success('Berhasil logout')
+      navigate('/login')
+    } catch (error) {
+      console.error('Error logging out:', error)
+      toast.error('Gagal logout')
+    }
+  }
+
+  /**
    * Check apakah path saat ini aktif
    * @param {string} path - Path untuk dicek
    * @returns {boolean}
@@ -169,52 +212,74 @@ export default function StudentLayout({
     {
       label: 'Leaderboard',
       path: '/student/leaderboard',
-      icon: 'leaderboard',
-      badge: 'Soon'
+      icon: 'leaderboard'
     },
     {
       label: 'Reward',
       path: '/student/reward',
-      icon: 'reward',
-      badge: 'Soon'
+      icon: 'reward'
     },
     {
       label: 'Profile',
       path: '/student/profile',
-      icon: 'profile',
-      badge: 'Soon'
+      icon: 'profile'
     }
   ]
 
   /**
-   * Class Navigation items (Chapter, Pengumuman, Anggota)
+   * Class Navigation items (Pelajaran, Pengumuman, Anggota, Leaderboard, Forum)
    */
   const classNavItems = [
     {
-      label: 'Chapter',
-      value: 'chapter',
+      label: 'Pelajaran',
+      value: 'pelajaran',
       icon: 'classes'
     },
     {
       label: 'Pengumuman',
       value: 'announcements',
-      icon: 'eiffel'
+      icon: 'announcement'
     },
     {
       label: 'Anggota',
       value: 'members',
-      icon: 'profile'
+      icon: 'members'
+    },
+    {
+      label: 'Leaderboard',
+      value: 'leaderboard',
+      icon: 'leaderboard'
+    },
+    {
+      label: 'Forum',
+      value: 'forum',
+      icon: 'forum'
     }
   ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* Desktop: Sidebar Navigation */}
+      {/* Desktop: Collapsible Sidebar Navigation */}
       {showBottomNav && (
-        <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col z-50">
+        <aside 
+          className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col z-50 transition-all duration-300 ${
+            sidebarExpanded ? 'lg:w-64' : 'lg:w-20'
+          }`}
+        >
           <div className="flex flex-col h-full bg-white border-r border-gray-200 shadow-sm">
+            {/* Toggle Button */}
+            <div className="flex items-center justify-center p-4 border-b border-gray-100">
+              <button
+                onClick={() => setSidebarExpanded(!sidebarExpanded)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+                title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+              >
+                <Icon name={sidebarExpanded ? 'collapse' : 'expand'} className="h-5 w-5" />
+              </button>
+            </div>
+
             {/* Navigation Menu */}
-            <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+            <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
               {showClassNav ? (
                 // Class Navigation
                 classNavItems.map((item) => (
@@ -222,15 +287,19 @@ export default function StudentLayout({
                     key={item.value}
                     onClick={() => onClassTabChange(item.value)}
                     className={`
-                      w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all
+                      w-full flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all
                       ${activeClassTab === item.value
                         ? 'bg-[#1E258F] text-white shadow-lg'
                         : 'text-gray-700 hover:bg-gray-100'
                       }
+                      ${sidebarExpanded ? 'justify-start' : 'justify-center'}
                     `}
+                    title={!sidebarExpanded ? item.label : undefined}
                   >
-                    <Icon name={item.icon} className="h-5 w-5" />
-                    <span className="text-sm font-semibold">{item.label}</span>
+                    <Icon name={item.icon} className="h-5 w-5 flex-shrink-0" />
+                    {sidebarExpanded && (
+                      <span className="text-sm font-semibold whitespace-nowrap">{item.label}</span>
+                    )}
                   </button>
                 ))
               ) : (
@@ -241,19 +310,30 @@ export default function StudentLayout({
                     to={item.path}
                     {...(item.badge && { onClick: (e) => e.preventDefault() })}
                     className={`
-                      relative flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all
+                      relative flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all
                       ${isActive(item.path)
                         ? 'bg-[#1E258F] text-white shadow-lg'
                         : 'text-gray-700 hover:bg-gray-100'
                       }
                       ${item.badge ? 'opacity-50 cursor-not-allowed' : ''}
+                      ${sidebarExpanded ? 'justify-start' : 'justify-center'}
                     `}
+                    title={!sidebarExpanded ? item.label : undefined}
                   >
-                    <Icon name={item.icon} className="h-5 w-5" />
-                    <span className="text-sm font-semibold">{item.label}</span>
-                    {item.badge && (
-                      <span className="ml-auto bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        {item.badge}
+                    <Icon name={item.icon} className="h-5 w-5 flex-shrink-0" />
+                    {sidebarExpanded && (
+                      <>
+                        <span className="text-sm font-semibold whitespace-nowrap">{item.label}</span>
+                        {item.badge && (
+                          <span className="ml-auto bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {item.badge}
+                          </span>
+                        )}
+                      </>
+                    )}
+                    {!sidebarExpanded && item.badge && (
+                      <span className="absolute -top-1 -right-1 bg-yellow-400 text-yellow-900 text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                        !
                       </span>
                     )}
                   </Link>
@@ -262,21 +342,44 @@ export default function StudentLayout({
             </nav>
 
             {/* Testing Button - DEV ONLY (Sidebar) */}
-            <div className="px-4 pb-4 border-t border-gray-200 pt-4">
+            <div className={`px-3 pb-2 ${sidebarExpanded ? '' : 'flex justify-center'}`}>
               <Link 
                 to="/student/testing"
-                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-yellow-50 text-yellow-800 border border-yellow-200 hover:shadow-md transition-all"
+                className={`
+                  flex items-center gap-3 px-3 py-3 rounded-xl bg-yellow-50 text-yellow-800 border border-yellow-200 hover:shadow-md transition-all
+                  ${sidebarExpanded ? '' : 'justify-center'}
+                `}
+                title={!sidebarExpanded ? 'Testing Panel' : undefined}
               >
                 <span className="text-lg">🧪</span>
-                <span className="text-sm font-bold">Testing Panel</span>
+                {sidebarExpanded && (
+                  <span className="text-sm font-bold whitespace-nowrap">Testing Panel</span>
+                )}
               </Link>
+            </div>
+
+            {/* Logout Button */}
+            <div className={`px-3 pb-4 border-t border-gray-200 pt-4 ${sidebarExpanded ? '' : 'flex justify-center'}`}>
+              <button 
+                onClick={handleLogout}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all
+                  ${sidebarExpanded ? 'justify-start' : 'justify-center'}
+                `}
+                title={!sidebarExpanded ? 'Logout' : undefined}
+              >
+                <Icon name="logout" className="h-5 w-5 flex-shrink-0" />
+                {sidebarExpanded && (
+                  <span className="text-sm font-semibold whitespace-nowrap">Logout</span>
+                )}
+              </button>
             </div>
           </div>
         </aside>
       )}
 
       {/* Main Container with padding for sidebar on desktop */}
-      <div className={showBottomNav ? "lg:pl-64" : ""}>
+      <div className={showBottomNav ? (sidebarExpanded ? "lg:pl-64" : "lg:pl-20") : ""} style={{ transition: 'padding-left 0.3s' }}>
         {/* Top Header - Stats Bar (Mobile Only) */}
         {showHeader && (
           <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm lg:hidden">
@@ -350,15 +453,14 @@ export default function StudentLayout({
                   </div>
                 )}
 
-                {/* Testing Button - DEV ONLY */}
-                <Link 
-                  to="/student/testing"
-                  className="flex items-center gap-1 bg-gradient-to-r from-yellow-200 to-orange-200 text-yellow-800 px-2 sm:px-3 py-1.5 rounded-full shadow-sm border border-yellow-300 hover:shadow-md transition-shadow"
-                  title="Testing Panel"
+                {/* Logout Button Mobile */}
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 bg-gradient-to-r from-red-100 to-pink-100 text-red-600 px-2 sm:px-3 py-1.5 rounded-full shadow-sm border border-red-200 hover:shadow-md transition-shadow"
+                  title="Logout"
                 >
-                  <span className="text-sm">🧪</span>
-                  <span className="hidden sm:inline text-xs font-bold">Testing</span>
-                </Link>
+                  <Icon name="logout" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
               </div>
             </div>
           </div>
@@ -373,8 +475,8 @@ export default function StudentLayout({
         {/* Bottom Navigation Bar - Mobile Only (Capsule Glassmorphism Style) */}
         {showBottomNav && (
           <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 lg:hidden">
-            <div className="bg-white/40 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full px-4 py-3">
-              <div className="flex items-center gap-5">
+            <div className="bg-white/40 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full px-3 py-2">
+              <div className="flex items-center gap-2">
                 {/* Show Class Navigation when in class detail page */}
                 {showClassNav ? (
                 classNavItems.map((item) => (
@@ -382,18 +484,19 @@ export default function StudentLayout({
                     key={item.value}
                     onClick={() => onClassTabChange(item.value)}
                     className={`
-                      relative p-3 rounded-full transition-all duration-300
+                      relative p-2.5 rounded-full transition-all duration-300
                       ${activeClassTab === item.value
                         ? 'bg-[#4450FF] text-white shadow-lg shadow-blue-500/50 scale-110'
                         : 'text-gray-600 hover:bg-white/80 hover:text-blue-500'
                       }
                     `}
+                    title={item.label}
                   >
-                    <Icon name={item.icon} className="h-6 w-6" />
+                    <Icon name={item.icon} className="h-5 w-5" />
                     
                     {/* Active indicator dot */}
                     {activeClassTab === item.value && (
-                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-lg" />
+                      <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-lg" />
                     )}
                   </button>
                 ))
@@ -405,7 +508,7 @@ export default function StudentLayout({
                     to={item.path}
                     {...(item.badge && { onClick: (e) => e.preventDefault() })}
                     className={`
-                      relative p-3 rounded-full transition-all duration-300
+                      relative p-2.5 rounded-full transition-all duration-300
                       ${isActive(item.path)
                         ? 'bg-[#4450FF] text-white shadow-lg shadow-blue-500/50 scale-110'
                         : 'text-gray-600 hover:bg-white/80 hover:text-blue-500'
@@ -413,17 +516,17 @@ export default function StudentLayout({
                       ${item.badge ? 'opacity-40 cursor-not-allowed' : ''}
                     `}
                   >
-                    <Icon name={item.icon} className="h-6 w-6" />
+                    <Icon name={item.icon} className="h-5 w-5" />
                     
                     {/* Active indicator dot */}
                     {isActive(item.path) && (
-                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-lg" />
+                      <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-lg" />
                     )}
                     
                     {/* Soon Badge */}
                     {item.badge && (
-                      <span className="absolute -top-1 -right-1 bg-yellow-400 text-yellow-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-yellow-500 shadow-md">
-                        {item.badge}
+                      <span className="absolute -top-1 -right-1 bg-yellow-400 text-yellow-900 text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-yellow-500 shadow-md">
+                        !
                       </span>
                     )}
                   </Link>

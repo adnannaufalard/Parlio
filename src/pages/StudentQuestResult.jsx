@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import StudentLayout from '../components/StudentLayout'
+import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
 function StudentQuestResult() {
@@ -8,341 +8,337 @@ function StudentQuestResult() {
   const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [resultData, setResultData] = useState(null)
+  const [showAnswers, setShowAnswers] = useState(false)
+  const [userProfile, setUserProfile] = useState(null)
 
   useEffect(() => {
-    // Get result data from navigation state
     if (location.state?.result) {
       setResultData(location.state.result)
       setLoading(false)
+      fetchUserProfile()
     } else {
       toast.error('Data hasil tidak ditemukan')
       navigate(-1)
     }
   }, [location, navigate])
 
-  const handleTryAgain = () => {
-    if (resultData?.questId) {
-      // Double check if retry is allowed
-      if (!canRetry) {
-        toast.error('Maksimal percobaan telah tercapai!')
-        return
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url, xp_points, coins')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile) {
+          setUserProfile(profile)
+        }
       }
-      navigate(`/student/quest/${resultData.questId}`)
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+    }
+  }
+
+  const handleTryAgain = () => {
+    if (resultData?.questId && canRetry) {
+      // Navigate to quest with replace to avoid stacking history
+      navigate(`/student/quest/${resultData.questId}`, { replace: true })
     }
   }
 
   const handleBack = () => {
-    // Navigate back to lesson detail with quest tab active
-    if (resultData?.lessonId) {
-      navigate(`/student/lesson/${resultData.lessonId}`, { 
-        state: { activeTab: 'quest' } 
-      })
+    // Navigate back to chapter detail (not lesson/materials)
+    if (resultData?.chapterId) {
+      navigate(`/student/chapters/${resultData.chapterId}`, { replace: true })
+    } else if (resultData?.lessonId) {
+      navigate(`/student/lesson/${resultData.lessonId}`, { replace: true })
     } else {
-      navigate(-1)
-    }
-  }
-
-  const handleViewAnswers = () => {
-    // Navigate to answers detail page
-    if (resultData?.attemptId) {
-      navigate(`/student/quest-answers/${resultData.attemptId}`)
-    } else {
-      toast.error('Data percobaan tidak ditemukan')
+      navigate('/student/chapters', { replace: true })
     }
   }
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
-    return `${mins} menit ${secs} detik`
+    return `${mins}m ${secs}s`
   }
 
   if (loading) {
     return (
-      <StudentLayout showHeader={true} showBottomNav={false}>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-500 font-['Poppins']">Memuat hasil...</p>
-          </div>
-        </div>
-      </StudentLayout>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+      </div>
     )
   }
 
   const isPassed = resultData.percentage >= (resultData.minScoreToPass || 70)
   const canRetry = resultData.attemptNumber < (resultData.maxAttempts || 3)
+  
+  // Check if rewards were given (only when passing with better score)
+  const rewardsGiven = isPassed && resultData.isBetterScore
+  const noRewardsReason = !isPassed 
+    ? 'Kamu belum lulus quest ini' 
+    : !resultData.isBetterScore 
+      ? 'Skor tidak lebih tinggi dari sebelumnya' 
+      : null
 
   return (
-    <StudentLayout showHeader={true} showBottomNav={false}>
-      <div className="max-w-2xl mx-auto">
-        {/* Result Header */}
-        <div className={`rounded-2xl shadow-xl p-8 mb-6 text-white relative overflow-hidden ${
-          isPassed 
-            ? 'bg-gradient-to-br from-green-500 to-emerald-600' 
-            : 'bg-gradient-to-br from-red-500 to-rose-600'
-        }`}>
-          {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`,
-              backgroundSize: '20px 20px'
-            }}></div>
-          </div>
-
-          <div className="relative z-10">
-            {/* Icon & Status */}
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-4 backdrop-blur-sm">
-                <span className="text-6xl">
-                  {isPassed ? '🎉' : '😢'}
+    <div className="min-h-screen bg-gray-100">
+      {/* Header with integrated User Info */}
+      <div className={`${isPassed ? 'bg-green-600' : 'bg-red-500'} text-white`}>
+        {/* User Info Bar - Glassmorphism */}
+        {userProfile && (
+          <div className="bg-white/10 backdrop-blur-sm border-b border-white/20">
+            <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {userProfile.avatar_url ? (
+                  <img 
+                    src={userProfile.avatar_url} 
+                    alt="Avatar" 
+                    className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold">
+                    {userProfile.full_name?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <span className="font-medium font-['Poppins'] text-sm">
+                  {userProfile.full_name || 'Siswa'}
                 </span>
               </div>
-              <h1 className="text-3xl font-bold mb-2 font-['Poppins']">
-                {isPassed ? 'Selamat!' : 'Belum Berhasil'}
-              </h1>
-              <p className="text-lg text-white/90 font-['Poppins']">
-                {isPassed 
-                  ? 'Kamu berhasil menyelesaikan quest ini!' 
-                  : 'Jangan menyerah, coba lagi!'}
-              </p>
-            </div>
-
-            {/* Score Display */}
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 mb-4">
-              <div className="text-center">
-                <div className="text-6xl font-bold mb-2 font-['Poppins']">
-                  {Math.round(resultData.percentage)}%
-                </div>
-                <div className="text-sm text-white/80 font-['Poppins']">
-                  Skor Akhir
-                </div>
-                
-                {/* Show improvement indicator */}
-                {resultData.attemptNumber > 1 && resultData.isBetterScore && (
-                  <div className="mt-3 inline-flex items-center gap-2 bg-white/30 backdrop-blur-sm px-4 py-2 rounded-full">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm font-semibold font-['Poppins']">
-                      Meningkat dari {Math.round(resultData.previousBestPercentage)}%
-                    </span>
-                  </div>
-                )}
-                {resultData.attemptNumber > 1 && !resultData.isBetterScore && resultData.passed && (
-                  <div className="mt-3 inline-flex items-center gap-2 bg-white/30 backdrop-blur-sm px-4 py-2 rounded-full">
-                    <span className="text-sm font-semibold font-['Poppins']">
-                      Skor terbaik tetap: {Math.round(resultData.previousBestPercentage)}%
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Quest Title */}
-            <div className="text-center">
-              <h2 className="text-xl font-semibold font-['Poppins']">
-                {resultData.questTitle}
-              </h2>
-            </div>
-          </div>
-        </div>
-
-        {/* Statistics */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 font-['Poppins'] flex items-center gap-2">
-            <span className="text-2xl">📊</span>
-            Statistik
-          </h3>
-          
-          <div className="grid grid-cols-2 gap-4">
-            {/* Correct Answers */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-green-500 text-white rounded-lg flex items-center justify-center font-bold text-xl">
-                  ✓
+                <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                  <span className="text-amber-200">⚡</span>
+                  <span className="text-sm font-medium font-['Poppins']">{userProfile.xp_points?.toLocaleString() || 0}</span>
                 </div>
-                <div className="flex-1">
-                  <div className="text-2xl font-bold text-green-700 font-['Poppins']">
-                    {resultData.correctAnswers}
-                  </div>
-                  <div className="text-xs text-green-600 font-['Poppins']">
-                    Jawaban Benar
-                  </div>
+                <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                  <span className="text-yellow-200">🪙</span>
+                  <span className="text-sm font-medium font-['Poppins']">{userProfile.coins?.toLocaleString() || 0}</span>
                 </div>
               </div>
             </div>
-
-            {/* Wrong Answers */}
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-red-500 text-white rounded-lg flex items-center justify-center font-bold text-xl">
-                  ✗
-                </div>
-                <div className="flex-1">
-                  <div className="text-2xl font-bold text-red-700 font-['Poppins']">
-                    {resultData.wrongAnswers}
-                  </div>
-                  <div className="text-xs text-red-600 font-['Poppins']">
-                    Jawaban Salah
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Time Spent */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold text-xl">
-                  ⏱️
-                </div>
-                <div className="flex-1">
-                  <div className="text-lg font-bold text-blue-700 font-['Poppins']">
-                    {formatTime(resultData.timeSpent)}
-                  </div>
-                  <div className="text-xs text-blue-600 font-['Poppins']">
-                    Waktu Mengerjakan
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Total Score */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-amber-500 text-white rounded-lg flex items-center justify-center font-bold text-xl">
-                  📝
-                </div>
-                <div className="flex-1">
-                  <div className="text-lg font-bold text-amber-700 font-['Poppins']">
-                    {resultData.score}/{resultData.maxScore}
-                  </div>
-                  <div className="text-xs text-amber-600 font-['Poppins']">
-                    Total Poin
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Rewards (only if passed AND earned rewards) */}
-        {isPassed && (
-          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-6 mb-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 font-['Poppins'] flex items-center gap-2">
-              <span className="text-2xl">🎁</span>
-              Reward
-              {resultData.attemptNumber > 1 && resultData.isBetterScore && (
-                <span className="ml-2 text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                  Skor Meningkat!
-                </span>
-              )}
-              {resultData.attemptNumber > 1 && !resultData.isBetterScore && (
-                <span className="ml-2 text-sm bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
-                  Tidak Ada Reward Tambahan
-                </span>
-              )}
-            </h3>
-            
-            {resultData.isBetterScore && (resultData.xpEarned > 0 || resultData.coinsEarned > 0) ? (
-              <div className="flex items-center justify-center gap-6">
-                {resultData.xpEarned > 0 && (
-                  <div className="flex items-center gap-3 bg-white rounded-lg px-6 py-4 shadow-sm">
-                    <span className="text-3xl">⚡</span>
-                    <div>
-                      <div className="text-2xl font-bold text-amber-600 font-['Poppins']">
-                        +{resultData.xpEarned}
-                      </div>
-                      <div className="text-xs text-gray-600 font-['Poppins']">
-                        XP {resultData.attemptNumber > 1 ? '(Peningkatan)' : ''}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {resultData.coinsEarned > 0 && (
-                  <div className="flex items-center gap-3 bg-white rounded-lg px-6 py-4 shadow-sm">
-                    <span className="text-3xl">🪙</span>
-                    <div>
-                      <div className="text-2xl font-bold text-yellow-600 font-['Poppins']">
-                        +{resultData.coinsEarned}
-                      </div>
-                      <div className="text-xs text-gray-600 font-['Poppins']">
-                        Koin {resultData.attemptNumber > 1 ? '(Peningkatan)' : ''}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <div className="inline-flex items-center gap-3 bg-white rounded-lg px-6 py-4 shadow-sm">
-                  <span className="text-3xl">ℹ️</span>
-                  <div className="text-left">
-                    <div className="text-sm font-semibold text-gray-900 font-['Poppins']">
-                      Tidak Ada Reward Tambahan
-                    </div>
-                    <div className="text-xs text-gray-600 font-['Poppins']">
-                      Skor belum meningkat dari percobaan sebelumnya ({Math.round(resultData.previousBestPercentage)}%)
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* Attempt Info */}
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🔄</span>
-              <div>
-                <div className="text-sm font-semibold text-gray-900 font-['Poppins']">
-                  Percobaan ke-{resultData.attemptNumber}
-                </div>
-                <div className="text-xs text-gray-600 font-['Poppins']">
-                  dari {resultData.maxAttempts} percobaan
-                </div>
-              </div>
+        <div className="max-w-3xl mx-auto px-4 py-8">
+          {/* Status */}
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-full mb-4">
+              <span className="text-5xl">{isPassed ? '🎉' : '😢'}</span>
             </div>
-            {!isPassed && !canRetry && (
-              <span className="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-full font-medium font-['Poppins']">
-                Maksimal percobaan tercapai
-              </span>
+            <h1 className="text-2xl font-bold mb-1 font-['Poppins']">
+              {isPassed ? 'Selamat!' : 'Belum Berhasil'}
+            </h1>
+            <p className="text-white/80 font-['Poppins']">
+              {isPassed ? 'Kamu lulus quest ini!' : 'Coba lagi, kamu pasti bisa!'}
+            </p>
+          </div>
+
+          {/* Score */}
+          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 text-center">
+            <div className="text-6xl font-bold font-['Poppins'] mb-1">
+              {Math.round(resultData.percentage)}%
+            </div>
+            <div className="text-white/80 text-sm font-['Poppins']">
+              {resultData.score}/{resultData.maxScore} poin
+            </div>
+            
+            {resultData.attemptNumber > 1 && resultData.isBetterScore && (
+              <div className="mt-3 inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full text-sm font-['Poppins']">
+                📈 Meningkat dari {Math.round(resultData.previousBestPercentage)}%
+              </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+            <div className="text-2xl font-bold text-green-600 font-['Poppins']">{resultData.correctAnswers}</div>
+            <div className="text-xs text-gray-500 font-['Poppins']">Benar</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+            <div className="text-2xl font-bold text-red-500 font-['Poppins']">{resultData.wrongAnswers}</div>
+            <div className="text-xs text-gray-500 font-['Poppins']">Salah</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+            <div className="text-2xl font-bold text-blue-600 font-['Poppins']">{formatTime(resultData.timeSpent)}</div>
+            <div className="text-xs text-gray-500 font-['Poppins']">Waktu</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+            <div className="text-2xl font-bold text-gray-700 font-['Poppins']">{resultData.attemptNumber}/{resultData.maxAttempts}</div>
+            <div className="text-xs text-gray-500 font-['Poppins']">Percobaan</div>
+          </div>
+        </div>
+
+        {/* Rewards Section - Always show with status */}
+        <div className={`rounded-xl p-4 ${rewardsGiven ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50 border border-gray-200'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className={`text-sm font-semibold font-['Poppins'] ${rewardsGiven ? 'text-amber-800' : 'text-gray-600'}`}>
+              {rewardsGiven ? '🎁 Reward Didapat' : '🎁 Status Reward'}
+            </h3>
+            {rewardsGiven && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium font-['Poppins']">
+                ✓ Ditambahkan
+              </span>
+            )}
+          </div>
+          
+          {rewardsGiven ? (
+            <div className="flex justify-center gap-6">
+              {resultData.xpEarned > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-amber-600 font-['Poppins']">+{resultData.xpEarned}</div>
+                  <div className="text-xs text-amber-700 font-['Poppins']">XP</div>
+                </div>
+              )}
+              {resultData.coinsEarned > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600 font-['Poppins']">+{resultData.coinsEarned}</div>
+                  <div className="text-xs text-yellow-700 font-['Poppins']">Koin</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-2">
+              <div className="flex justify-center gap-6 mb-3 opacity-50">
+                <div className="text-center">
+                  <div className="text-xl font-bold text-gray-400 font-['Poppins']">+0</div>
+                  <div className="text-xs text-gray-400 font-['Poppins']">XP</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-bold text-gray-400 font-['Poppins']">+0</div>
+                  <div className="text-xs text-gray-400 font-['Poppins']">Koin</div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 font-['Poppins'] flex items-center justify-center gap-1">
+                <span>ℹ️</span>
+                <span>{noRewardsReason}</span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Toggle Answer Details */}
+        <button
+          onClick={() => setShowAnswers(!showAnswers)}
+          className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center justify-between hover:bg-gray-50 transition-colors"
+        >
+          <span className="font-semibold text-gray-800 font-['Poppins']">
+            📋 Lihat Detail Jawaban
+          </span>
+          <svg 
+            className={`w-5 h-5 text-gray-500 transition-transform ${showAnswers ? 'rotate-180' : ''}`} 
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {/* Answer Details */}
+        {showAnswers && resultData.answersDetail && (
+          <div className="space-y-3">
+            {resultData.answersDetail.map((answer, idx) => (
+              <div 
+                key={answer.questionId}
+                className={`bg-white rounded-xl overflow-hidden shadow-sm border-l-4 ${
+                  answer.isCorrect ? 'border-green-500' : 'border-red-500'
+                }`}
+              >
+                <div className="p-4">
+                  {/* Question Header */}
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-sm ${
+                      answer.isCorrect ? 'bg-green-500' : 'bg-red-500'
+                    }`}>
+                      {answer.isCorrect ? '✓' : '✗'}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-1 font-['Poppins']">Soal {idx + 1}</div>
+                      <p className="text-gray-800 font-medium font-['Poppins']">{answer.questionText}</p>
+                    </div>
+                  </div>
+
+                  {/* Answer Display */}
+                  <div className="ml-11 space-y-2">
+                    {/* User's Answer */}
+                    <div className={`p-3 rounded-lg ${
+                      answer.isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                    }`}>
+                      <div className="text-xs text-gray-500 mb-1 font-['Poppins']">Jawaban kamu:</div>
+                      <div className={`font-medium font-['Poppins'] ${
+                        answer.isCorrect ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {answer.userAnswer ? (
+                          answer.options && answer.options[answer.userAnswer] 
+                            ? `${answer.userAnswer}. ${answer.options[answer.userAnswer]}`
+                            : answer.userAnswer
+                        ) : (
+                          <span className="italic text-gray-400">Tidak dijawab</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Correct Answer - Only show for correct answers */}
+                    {answer.isCorrect && (
+                      <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-600 text-lg">✓</span>
+                          <span className="text-green-700 font-medium font-['Poppins']">Jawaban benar!</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* For wrong answers - show hint but NOT the correct answer */}
+                    {!answer.isCorrect && (
+                      <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                        <div className="flex items-center gap-2 text-gray-600 font-['Poppins'] text-sm">
+                          <span>💡</span>
+                          <span>Pelajari kembali materi untuk menemukan jawaban yang benar</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-4 pb-8">
           <button
             onClick={handleBack}
-            className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors font-['Poppins']"
+            className="flex-1 py-3 px-4 bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors font-['Poppins']"
           >
             Kembali
           </button>
           
-          {isPassed ? (
-            <button
-              onClick={handleViewAnswers}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold rounded-xl shadow-lg transition-all font-['Poppins'] flex items-center justify-center gap-2"
-            >
-              <span>📝</span>
-              <span>Lihat Detail</span>
-            </button>
-          ) : canRetry ? (
+          {!isPassed && canRetry && (
             <button
               onClick={handleTryAgain}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold rounded-xl shadow-lg transition-all font-['Poppins'] flex items-center justify-center gap-2"
+              className="flex-1 py-3 px-4 bg-[#1E258F] text-white font-semibold rounded-xl hover:bg-[#161d6f] transition-colors font-['Poppins']"
             >
-              <span>🔄</span>
-              <span>Coba Lagi</span>
+              Coba Lagi
             </button>
-          ) : null}
+          )}
+
+          {isPassed && (
+            <button
+              onClick={handleBack}
+              className="flex-1 py-3 px-4 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors font-['Poppins']"
+            >
+              Lanjut Belajar
+            </button>
+          )}
         </div>
       </div>
-    </StudentLayout>
+    </div>
   )
 }
 

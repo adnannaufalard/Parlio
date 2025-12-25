@@ -13,10 +13,14 @@
  */
 
 import StudentLayout from '../components/StudentLayout'
+import UserInfoHeader from '../components/UserInfoHeader'
 
 export default function StudentProfile() {
   return (
     <StudentLayout>
+      {/* User Info Header */}
+      <UserInfoHeader />
+
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center max-w-md mx-auto p-8">
           <div className="bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center shadow-2xl">
