@@ -1,582 +1,362 @@
-# PARLIO - Platform Gamifikasi Pembelajaran Bahasa Prancis
+﻿# PARLIO - Platform Gamifikasi Pembelajaran Bahasa Prancis
+**Last Updated:** 25 Desember 2025
+
+---
 
 ##  RINGKASAN PROJECT
 
-**Nama Project:** Parlio  
-**Visi:** Platform gamifikasi utama untuk pembelajaran bahasa Prancis di tingkat SMA  
-**Konsep Gamifikasi:** "Menaklukkan Menara Eiffel" (La Conquête de la Tour Eiffel)  
-**Tech Stack:** React 18 + Vite 7 + Tailwind CSS + Supabase  
-**Database:** PostgreSQL (via Supabase)  
-**Storage:** Supabase Storage  
-**Authentication:** Supabase Auth
+| Item | Detail |
+|------|--------|
+| **Nama Project** | Parlio |
+| **Visi** | Platform gamifikasi pembelajaran bahasa Prancis tingkat SMA |
+| **Konsep** | "Menaklukkan Menara Eiffel" (La Conquete de la Tour Eiffel) |
+| **Tech Stack** | React 19 + Vite + Tailwind CSS + Supabase |
+| **Database** | PostgreSQL (via Supabase) |
+| **Storage** | Supabase Storage |
+| **Auth** | Supabase Auth |
+
+### Color Scheme
+- **Primary:** `#1E258F` (Dark Blue)
+- **Backgrounds:** Gray gradients (`bg-gray-50`, `bg-gray-100`)
+- **Success:** Green (`bg-green-500`, `bg-green-600`)
+- **Error:** Red (`bg-red-500`)
+- **Warning:** Amber/Yellow (`bg-amber-500`, `bg-yellow-500`)
+
+---
+
+##  STRUKTUR FILE PROJECT
+
+`
+Parlio/
+ .env                          # Environment variables (Supabase keys)
+ .gitignore
+ eslint.config.js
+ index.html                    # Entry HTML
+ install.ps1                   # PowerShell install script
+ package.json
+ postcss.config.js
+ tailwind.config.js            # Tailwind configuration
+ vite.config.js                # Vite configuration
+ CURRENT_PROJECT_STRUCTURE.md  # This file
+ blueprint/                    # Project blueprint/documentation
+
+ public/
+    vite.svg
+
+ src/
+    App.css
+    App.jsx                   # Main App with React Router
+    index.css                 # Global styles + Tailwind imports
+    main.jsx                  # React entry point
+   
+    assets/
+       react.svg
+       logo/
+           1.png             # Logo dark version
+           2.png             # Logo light/white version
+   
+    components/
+       CreateClassModal.jsx      # Modal for creating new class
+       DashboardLayout.jsx       # Admin dashboard layout
+       ProtectedRoute.jsx        # Route guard by role
+       StudentLayout.jsx         # Student pages layout (sidebar + bottom nav)
+       TeacherLayout.jsx         # Teacher pages layout
+       UserFormModal.jsx         # User creation/edit modal
+       UserInfoHeader.jsx        # User stats header (XP, coins) - NEW
+       UserTable.jsx             # Admin user management table
+   
+    lib/
+       adminApi.js               # Admin API functions
+       supabaseClient.js         # Supabase client initialization
+       teacherMenuItems.js       # Teacher sidebar menu config
+       uploadHelper.js           # File upload utilities
+   
+    pages/
+       
+        # Auth & Landing
+        LandingPage.jsx           # Public landing page
+        LoginPage.jsx             # Login page
+       
+        # Admin Pages
+        DashboardPage.jsx         # Admin main dashboard
+        AdminContent.jsx          # Content management
+        AdminMonitoring.jsx       # System monitoring
+        AdminUsers.jsx            # User management
+       
+        # Super Admin Pages
+        SuperAdminDashboard.jsx           # Super admin dashboard
+        SuperAdminAnnouncements.jsx       # Global announcements
+        SuperAdminMotivationalMessages.jsx # Motivational messages
+       
+        # Teacher Pages (11 files)
+        TeacherDashboard.jsx      # Teacher main dashboard
+        TeacherClasses.jsx        # Teacher's class list
+        TeacherClassDetail.jsx    # Class detail (students, chapters)
+        TeacherChapterDetail.jsx  # Chapter detail (lessons)
+        TeacherLessonDetail.jsx   # Lesson detail (materials, quests)
+        TeacherQuestBuilder.jsx   # Quest builder (create/edit quest)
+        TeacherQuestQuestions.jsx # Quest questions management
+        TeacherLeaderboard.jsx    # Class leaderboard
+        TeacherReports.jsx        # Reports & analytics
+        TeacherReward.jsx         # Reward management
+        TeacherAccount.jsx        # Teacher profile settings
+       
+        # Student Pages (13 files)
+        StudentDashboard.jsx          # Student main dashboard
+        StudentClasses.jsx            # Student's joined classes
+        StudentClassChapters.jsx      # Class detail (5 tabs)
+        StudentChapterDetail.jsx      # Chapter detail (lessons list)
+        StudentLessonDetail.jsx       # Lesson detail (materials + quest)
+        StudentQuestDetail.jsx        # Quest taking UI (sidebar timer)
+        StudentQuestResult.jsx        # Quest result page
+        StudentQuestAnswersDetail.jsx # Quest answer review
+        StudentLeaderboard.jsx        # Global leaderboard
+        StudentProfile.jsx            # Profile & achievements
+        StudentReward.jsx             # Reward shop
+        StudentTestingPanel.jsx       # Dev testing panel
+
+ supabase/
+     update_new_schema.sql                           # Main database schema
+     migration_add_material_id_to_quests.sql         # Quest-material relation
+     migration_class_forum.sql                       # Class forum feature
+     migration_quest_points_and_material_description.sql # Quest points & material desc
+    
+     functions/
+         admin-users/
+             index.ts              # Edge function for admin user management
+`
 
 ---
 
 ##  DATABASE SCHEMA
 
-### 1. **profiles** (User Profiles)
-```sql
-- id: UUID (PK, references auth.users)
-- email: VARCHAR
-- full_name: VARCHAR
-- role: VARCHAR (siswa, guru, admin)
-- avatar_url: VARCHAR
-- created_at: TIMESTAMPTZ
-- updated_at: TIMESTAMPTZ
-```
+### Core Tables
+| Table | Kolom Utama | Deskripsi |
+|-------|-------------|-----------|
+| `profiles` | id, full_name, email, role, avatar_url, xp_points, coins | User profiles |
+| `classes` | id, teacher_id, class_name, class_code, description | Kelas guru |
+| `class_members` | class_id, student_id, joined_at | Siswa-kelas relationship |
+| `chapters` | id, teacher_id, title, description, order_index | Bab pembelajaran |
+| `class_chapters` | class_id, chapter_id, assigned_at | Assignment chapter ke kelas |
+| `lessons` | id, chapter_id, title, order_index | Sub-bab/lesson |
+| `lesson_materials` | id, lesson_id, title, type, content, description | Materi (video/pdf/text/link) |
 
-### 2. **student_stats** (Student Gamification Stats)
-```sql
-- id: UUID (PK)
-- student_id: UUID (FK -> profiles.id)
-- xp: INT (Experience Points)
-- level: INT (Player Level)
-- coins: INT (Virtual Currency - Écus)
-- current_streak: INT (Login Streak Days)
-- longest_streak: INT
-- last_login: DATE
-- total_quests_completed: INT
-- total_time_spent: INT (in minutes)
-- accuracy_rate: DECIMAL
-- created_at: TIMESTAMPTZ
-- updated_at: TIMESTAMPTZ
-```
+### Quest System
+| Table | Kolom Utama | Deskripsi |
+|-------|-------------|-----------|
+| `quests` | id, material_id, title, xp_reward, coin_reward, time_limit, points_per_question | Quest definition |
+| `quest_questions` | id, quest_id, question_text, question_type, options, correct_answer | Soal quest |
+| `student_quest_attempts` | id, quest_id, student_id, score, xp_earned, coins_earned, completed_at | Attempt record |
+| `user_answers` | id, attempt_id, question_id, user_answer, is_correct, points_earned | Jawaban siswa |
 
-### 3. **classes** (Kelas yang dibuat Guru)
-```sql
-- id: UUID (PK)
-- teacher_id: UUID (FK -> profiles.id)
-- class_name: VARCHAR
-- class_code: VARCHAR (UNIQUE, auto-generated)
-- description: TEXT
-- created_at: TIMESTAMPTZ
-- updated_at: TIMESTAMPTZ
-```
+### Progress & Social
+| Table | Kolom Utama | Deskripsi |
+|-------|-------------|-----------|
+| `student_chapter_progress` | student_id, chapter_id, completed | Progress chapter |
+| `student_lesson_progress` | student_id, lesson_id, completed | Progress lesson |
+| `class_announcements` | id, class_id, title, content, is_pinned | Pengumuman kelas |
+| `class_forum_posts` | id, class_id, author_id, content, parent_id | Forum diskusi |
 
-### 4. **class_members** (Siswa yang bergabung di Kelas)
-```sql
-- id: UUID (PK)
-- class_id: UUID (FK -> classes.id)
-- student_id: UUID (FK -> profiles.id)
-- joined_at: TIMESTAMPTZ
-```
-
-### 5. **chapters** (Bab/Lantai Menara Eiffel)
-```sql
-- id: UUID (PK)
-- teacher_id: UUID (FK -> profiles.id)
-- title: VARCHAR
-- description: TEXT
-- order_index: INT
-- created_at: TIMESTAMPTZ
-- updated_at: TIMESTAMPTZ
-```
-
-### 6. **class_chapters** (Assignment Chapter ke Kelas)
-```sql
-- id: UUID (PK)
-- class_id: UUID (FK -> classes.id)
-- chapter_id: UUID (FK -> chapters.id)
-- assigned_at: TIMESTAMPTZ
-```
-
-### 7. **lessons** (Sub-bab/Ruangan di Lantai)
-```sql
-- id: UUID (PK)
-- chapter_id: UUID (FK -> chapters.id)
-- title: VARCHAR
-- content: TEXT (materi pembelajaran)
-- order_index: INT
-- created_at: TIMESTAMPTZ
-- updated_at: TIMESTAMPTZ
-```
-
-### 8. **quests** (Kuis/Tantangan di Lesson)
-```sql
-- id: UUID (PK)
-- lesson_id: UUID (FK -> lessons.id)
-- title: VARCHAR
-- description: TEXT
-- xp_reward: INT
-- coin_reward: INT
-- passing_score: INT
-- time_limit: INT (in seconds, nullable)
-- created_at: TIMESTAMPTZ
-- updated_at: TIMESTAMPTZ
-```
-
-### 9. **quest_questions** (Soal-soal di Quest)
-```sql
-- id: UUID (PK)
-- quest_id: UUID (FK -> quests.id)
-- question_text: TEXT
-- question_type: VARCHAR (multiple_choice, essay, fill_blank, matching)
-- options: JSONB (untuk pilihan ganda)
-- correct_answer: TEXT
-- points: INT
-- order_index: INT
-- created_at: TIMESTAMPTZ
-```
-
-### 10. **quest_attempts** (Percobaan siswa mengerjakan Quest)
-```sql
-- id: UUID (PK)
-- quest_id: UUID (FK -> quests.id)
-- student_id: UUID (FK -> profiles.id)
-- score: INT
-- total_questions: INT
-- correct_answers: INT
-- xp_earned: INT
-- coins_earned: INT
-- completed: BOOLEAN
-- started_at: TIMESTAMPTZ
-- completed_at: TIMESTAMPTZ
-```
-
-### 11. **quest_answers** (Jawaban siswa per soal)
-```sql
-- id: UUID (PK)
-- attempt_id: UUID (FK -> quest_attempts.id)
-- question_id: UUID (FK -> quest_questions.id)
-- student_answer: TEXT
-- is_correct: BOOLEAN
-- points_earned: INT
-- answered_at: TIMESTAMPTZ
-```
-
-### 12. **student_progress** (Progress siswa per Lesson)
-```sql
-- id: UUID (PK)
-- student_id: UUID (FK -> profiles.id)
-- lesson_id: UUID (FK -> lessons.id)
-- completed: BOOLEAN
-- completed_at: TIMESTAMPTZ
-- created_at: TIMESTAMPTZ
-```
+### Admin/System
+| Table | Kolom Utama | Deskripsi |
+|-------|-------------|-----------|
+| `announcements` | id, title, content, is_active, start_date, end_date | Pengumuman global |
+| `motivational_messages` | id, message, author, is_active | Pesan motivasi carousel |
 
 ---
 
-## 📁 STRUKTUR FILE PROJECT
+##  ROUTES (App.jsx)
 
-```
-Parlio/
-├── public/
-│   └── vite.svg
-├── src/
-│   ├── main.jsx                    # Entry point
-│   ├── App.jsx                     # Root component with routing
-│   ├── index.css                   # Global Tailwind styles
-│   │
-│   ├── assets/
-│   │   └── react.svg
-│   │
-│   ├── lib/
-│   │   ├── supabaseClient.js       # Supabase initialization
-│   │   ├── adminApi.js             # Admin CRUD functions
-│   │   └── uploadHelper.js         # File upload utilities
-│   │
-│   ├── components/
-│   │   ├── DashboardLayout.jsx     # Layout wrapper dengan sidebar
-│   │   ├── ProtectedRoute.jsx      # Route guard by role
-│   │   ├── CreateClassModal.jsx    # Modal buat kelas baru
-│   │   ├── UserFormModal.jsx       # Modal add/edit user (admin)
-│   │   └── UserTable.jsx           # Table user management
-│   │
-│   └── pages/
-│       ├── LandingPage.jsx         # Public landing page
-│       ├── LoginPage.jsx           # Login semua role
-│       │
-│       ├── SuperAdminDashboard.jsx # Admin dashboard
-│       ├── AdminUsers.jsx          # User management (CRUD)
-│       ├── AdminMonitoring.jsx     # Monitoring & logs
-│       ├── AdminContent.jsx        # Content moderation
-│       │
-│       ├── TeacherDashboard.jsx    # Guru dashboard
-│       ├── TeacherClasses.jsx      # Kelola kelas
-│       ├── TeacherClassDetail.jsx  # Detail kelas + tabs
-│       ├── TeacherQuestBuilder.jsx # List chapters
-│       ├── TeacherChapterDetail.jsx# List lessons in chapter
-│       ├── TeacherLessonDetail.jsx # Edit lesson + list quests
-│       └── TeacherQuestQuestions.jsx # Edit quest questions
-│       │
-│       ├── StudentDashboard.jsx    # Siswa dashboard
-│       └── StudentClasses.jsx      # Kelas siswa + join class
-│
-├── supabase/
-│   ├── schema.sql                  # Main database schema
-│   ├── schema_quest_system.sql     # Quest system tables
-│   ├── storage_setup.sql           # Storage buckets setup
-│   └── functions/
-│       └── admin-users/
-│           └── index.ts            # Edge function untuk admin
-│
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-├── postcss.config.js
-└── README.md
-```
+### Public Routes
+| Path | Component | Deskripsi |
+|------|-----------|-----------|
+| `/` | LandingPage | Public landing page |
+| `/login` | LoginPage | Login semua role |
+
+### Admin Routes (`/admin/*`)
+| Path | Component | Deskripsi |
+|------|-----------|-----------|
+| `/admin/dashboard` | DashboardPage | Admin dashboard |
+| `/admin/users` | AdminUsers | User management |
+| `/admin/content` | AdminContent | Content management |
+| `/admin/monitoring` | AdminMonitoring | System monitoring |
+
+### Super Admin Routes (`/superadmin/*`)
+| Path | Component | Deskripsi |
+|------|-----------|-----------|
+| `/superadmin/dashboard` | SuperAdminDashboard | Super admin dashboard |
+| `/superadmin/announcements` | SuperAdminAnnouncements | Pengumuman global |
+| `/superadmin/motivational` | SuperAdminMotivationalMessages | Pesan motivasi |
+
+### Teacher Routes (`/teacher/*`)
+| Path | Component | Deskripsi |
+|------|-----------|-----------|
+| `/teacher/dashboard` | TeacherDashboard | Teacher dashboard |
+| `/teacher/classes` | TeacherClasses | Daftar kelas |
+| `/teacher/class/:classId` | TeacherClassDetail | Detail kelas |
+| `/teacher/chapter/:chapterId` | TeacherChapterDetail | Detail chapter |
+| `/teacher/lesson/:lessonId` | TeacherLessonDetail | Detail lesson |
+| `/teacher/quest/:questId` | TeacherQuestBuilder | Quest builder |
+| `/teacher/quest/:questId/questions` | TeacherQuestQuestions | Kelola soal |
+| `/teacher/leaderboard` | TeacherLeaderboard | Leaderboard |
+| `/teacher/reports` | TeacherReports | Laporan |
+| `/teacher/reward` | TeacherReward | Reward |
+| `/teacher/account` | TeacherAccount | Akun |
+
+### Student Routes (`/student/*`)
+| Path | Component | Deskripsi |
+|------|-----------|-----------|
+| `/student/dashboard` | StudentDashboard | Student dashboard |
+| `/student/chapters` | StudentClasses | Daftar kelas siswa |
+| `/student/class/:classId` | StudentClassChapters | Detail kelas (5 tabs) |
+| `/student/chapters/:chapterId` | StudentChapterDetail | Detail chapter |
+| `/student/lesson/:lessonId` | StudentLessonDetail | Detail lesson + materi |
+| `/student/quest/:questId` | StudentQuestDetail | Mengerjakan quest |
+| `/student/quest-result` | StudentQuestResult | Hasil quest |
+| `/student/leaderboard` | StudentLeaderboard | Leaderboard global |
+| `/student/reward` | StudentReward | Reward shop |
+| `/student/profile` | StudentProfile | Profil siswa |
+| `/student/testing` | StudentTestingPanel | Testing panel (dev) |
 
 ---
 
-## ✅ FITUR YANG SUDAH DIIMPLEMENTASI
+##  STUDENT QUEST FLOW
 
-### **Super Admin:**
-- ✅ Dashboard dengan statistik (total users by role)
-- ✅ User Management (CRUD siswa & guru)
-- ✅ Tambah user manual (form)
-- ✅ Edit user (nama, email, role)
-- ✅ Reset password user
-- ✅ Delete user
-- ✅ Search & filter users
-- ⚠️ Monitoring page (struktur ada, konten belum lengkap)
-
-### **Guru:**
-- ✅ **Custom TeacherLayout** - Layout khusus dengan sidebar navigation sesuai blueprint
-- ✅ **Navigasi Sidebar** dengan menu:
-  - Dashboard
-  - Kelola Kelas
-  - Quest Builder
-  - Leaderboard (Coming Soon)
-  - Reward (Coming Soon)
-  - Laporan (Coming Soon)
-  - Akun (Coming Soon)
-- ✅ Dashboard dengan statistik:
-  - Total kelas yang diajar
-  - Total siswa di semua kelas
-  - Total chapters dibuat
-  - Total quests dibuat
-  - Recent classes (5 terbaru)
-  - Quick Actions (Kelola Kelas, Konten, Quest Builder, Monitoring)
-  - Recent Activities
-- ✅ Kelola Kelas:
-  - List semua kelas
-  - Buat kelas baru (auto-generate class_code)
-  - Detail kelas (tab Siswa)
-  - Lihat daftar siswa di kelas
-  - Hapus kelas
-- ✅ Quest Builder:
-  - List chapters
-  - Create chapter
-  - Edit chapter (title, description)
-  - Delete chapter
-  - View lessons in chapter
-  - Create lesson
-  - Edit lesson
-  - Delete lesson
-  - Assign chapter to class
-- ✅ Quest Questions:
-  - List questions in quest
-  - Add question (multiple choice, essay, fill blank, matching)
-  - Edit question
-  - Delete question
-  - Set correct answer & points
-- ✅ **Placeholder Pages** untuk fitur coming soon:
-  - Leaderboard page
-  - Reward page
-  - Reports page
-  - Account page
-
-### **Siswa:**
-- ✅ Dashboard:
-  - XP, Level, Coins display
-  - Current streak
-  - Stats overview (quests completed, accuracy rate)
-  - Recent quests
-- ✅ Kelas:
-  - Join kelas dengan class code
-  - View enrolled classes
-  - Leave class
-  - Basic class info
-
-### **Authentication:**
-- ✅ Login semua role
--  Role-based routing
--  Protected routes
--  Logout
+`
+StudentClasses (Daftar Kelas)
+        UserInfoHeader (XP, Coins)
+    
+StudentClassChapters (Detail Kelas)
+     Tab: Pelajaran (chapters list)
+     Tab: Pengumuman (pinned  first)
+     Tab: Anggota (class members)
+     Tab: Leaderboard (class ranking)
+     Tab: Forum (discussions)
+    
+StudentChapterDetail (Daftar Lessons)
+    
+StudentLessonDetail (Materi)
+        Material List
+        MaterialPreviewModal
+            Description
+            Preview (video/pdf/text)
+            "Kerjakan Quest" button
+    
+QuestConfirmModal (Konfirmasi)
+     Quest Info (soal, waktu, reward)
+     Attempt History (collapsible)
+     "Kerjakan" button
+    
+StudentQuestDetail (Mengerjakan Quest)
+     Desktop: Sidebar (timer + question nav)
+     Mobile: Fixed header timer + bottom nav
+     One question per page
+    
+StudentQuestResult (Hasil Quest)
+     User Info (glassmorphism)
+     Score & Status (LULUS/GAGAL)
+     Reward Status (XP/Coins atau alasan)
+     Answer Details (toggle)
+     Action buttons
+`
 
 ---
 
-##  SISTEM GAMIFIKASI (SUDAH ADA)
+##  FITUR YANG SUDAH DIIMPLEMENTASI
 
-### **XP (Experience Points):**
-- Didapat dari menjawab soal dengan benar
-- Digunakan untuk naik level
-- Formula: `xp_needed = level * 100`
+### Super Admin
+-  Dashboard statistik
+-  User Management (CRUD)
+-  Global Announcements (carousel)
+-  Motivational Messages
 
-### **Level:**
-- Naik otomatis saat XP mencapai threshold
-- Display di profile siswa
+### Guru
+-  TeacherLayout (sidebar navigation)
+-  Dashboard dengan statistik
+-  Kelola Kelas (create, delete, class code)
+-  Class Detail (students, chapters)
+-  Quest Builder (chapters  lessons  materials  quests)
+-  Quest Questions (CRUD, multiple types)
+-  Material Management (video, pdf, text, link + description)
+-  Quest Point System (per question points)
 
-### **Coins (Écus):**
-- Mata uang virtual
-- Didapat dari menyelesaikan quest
-- **Belum ada**: Toko Suvenir untuk belanjakan coins
-
-### **Streak:**
-- Hitung hari login berturut-turut
-- `current_streak` di student_stats
-- **Belum ada**: Reward streak bonus
-
-### **Leaderboard:**
-- Database sudah support (query by XP)
-- **Belum ada**: Halaman UI untuk siswa & guru
+### Siswa
+-  StudentLayout (sidebar + bottom nav)
+-  UserInfoHeader (XP, coins, avatar)
+-  Dashboard (stats, recent activities)
+-  Join class dengan code
+-  Class Detail (5 tabs)
+-  Material Preview Modal dengan description
+-  Quest Confirmation Modal + History
+-  Quest Taking (sidebar timer, one question per page)
+-  Quest Result (score, rewards, answer review)
+-  Pinned Announcements
+-  Navigation unlocked (Leaderboard, Reward, Profile)
 
 ---
 
-##  INSTALASI & MENJALANKAN PROJECT
+##  RECENT UPDATES (25 Desember 2025)
 
-### **Requirements:**
-- Node.js v20 LTS (recommended, saat ini pakai v24 experimental)
+1. **UserInfoHeader Component** - Komponen reusable untuk header user (avatar, XP, coins)
+2. **Quest Attempt History** - Dipindahkan ke QuestConfirmModal untuk UX lebih baik
+3. **Navigation Fixes** - Back navigation proper menggunakan location state
+4. **Pinned Announcements** - Visual indicator  untuk pengumuman disematkan
+5. **Unlocked Menus** - Semua menu student navigation sudah aktif
+6. **Glassmorphism UI** - `bg-white/10 backdrop-blur-sm` di quest result
+7. **Route Path Fixes** - Konsisten `/student/chapters/:id` paths
+
+---
+
+##  INSTALASI & MENJALANKAN
+
+### Requirements
+- Node.js v20+ LTS
 - npm v10+
 - Supabase account
 
-### **Setup:**
-```bash
+### Setup
+`bash
 # 1. Clone/Extract project
-cd "d:\Personal Project\Parlio"
+cd "d:\Project Adnan\Parlio"
 
 # 2. Install dependencies
 npm install
 
-# 3. Setup environment variables
-# Buat file .env di root dengan:
+# 3. Setup .env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# 4. Run development server
+# 4. Run dev server
 npm run dev
 
-# 5. Open browser
-# http://localhost:5173
-```
-
-### **Database Setup:**
-1. Buat project di Supabase
-2. Jalankan SQL di `supabase/schema.sql`
-3. Jalankan SQL di `supabase/schema_quest_system.sql`
-4. Jalankan SQL di `supabase/storage_setup.sql`
-5. Setup RLS policies sesuai kebutuhan
+# 5. Open http://localhost:5173
+`
 
 ---
 
-##  RECENT UPDATES (2025-01-24)
+##  TODO / FITUR MENDATANG
 
-### ✅ **Fixed: Teacher Navigation Issue**
-- **Problem**: Halaman guru menggunakan DashboardLayout yang tidak memiliki menu navigasi yang sesuai
-- **Solution**: 
-  - Created `TeacherLayout.jsx` - Layout khusus untuk guru dengan sidebar navigation
-  - Updated semua halaman guru untuk menggunakan `TeacherLayout`
-  - Menu navigasi sesuai blueprint: Dashboard, Kelola Kelas, Quest Builder, Leaderboard, Reward, Laporan, Akun
-  - Mobile-responsive dengan hamburger menu
-  - Added placeholder pages untuk fitur coming soon
-  - Routes terintegrasi di App.jsx
+### Prioritas Tinggi
+- [ ] Visualisasi Menara Eiffel (gamifikasi UI)
+- [ ] Misi Harian (daily missions)
+- [ ] Toko Suvenir (spend coins)
+- [ ] Badges System
+- [ ] Export laporan Excel
 
-### ✅ **Component Structure Improvement**
-- All teacher pages now use consistent `TeacherLayout`
-- Removed redundant `teacherMenuItems` arrays from individual pages
-- Centralized navigation logic in `TeacherLayout` component
-- Clean separation: `DashboardLayout` untuk Admin, `TeacherLayout` untuk Guru
-
-##  KNOWN ISSUES
-
-### **Bug yang Perlu Diperbaiki:**
-1. **StudentClasses.jsx line 301**: `classItem.name` should be `classItem.class_name`
-   - Impact: Leave class confirmation shows undefined
-   - Fix: Single line replacement
-   - Status: ⏳ Pending
-
-### **Potential Issues:**
-2. **Node.js v24.10.0**: Experimental version, may cause package conflicts
-   - Recommendation: Downgrade to Node.js v20 LTS
-   - Status: ⚠️ Monitor
-
----
-
-##  TODO / FITUR YANG BELUM ADA
-
-### **PRIORITAS TINGGI (Sesuai Blueprint):**
-
-#### **Super Admin:**
-- [ ] Kontrol Fitur (Feature Flags) - toggle fitur on/off
-- [ ] Mode Maintenance - tutup akses sementara
-- [ ] Grafik aktivitas server
-- [ ] Unggah Massal User (CSV/Excel import)
-- [ ] Real-time Activity Logs
-- [ ] Security Logs (failed login attempts)
-
-#### **Guru:**
-- [ ] **Leaderboard Page** - lihat ranking XP (filter per kelas)
-- [ ] **Reward Page** - berikan reward manual ke siswa
-- [ ] **Laporan Page** - generate & export Excel
-- [ ] Tab Statistik Performa di detail kelas
-- [ ] Tab Penugasan (Assigned Chapters) di detail kelas
-- [ ] Tab Pengumuman di detail kelas
-- [ ] Feed Notifikasi di dashboard
-- [ ] Widget "Siswa Perlu Perhatian"
-- [ ] **Tab Materi** di Lesson (rich text editor + upload PDF/image/audio/video)
-- [ ] **Tab Rules** di Lesson (set XP reward, coin reward, passing score)
-- [ ] Bulk question import (CSV)
-- [ ] Question bank/library
-
-#### **Siswa:**
-- [ ] **Visualisasi Menara Eiffel** (UI gamifikasi utama!)
-- [ ] **Misi Harian** (daily missions + progress tracking)
-- [ ] **Leaderboard Page** (filter: kelas saya / seluruh sekolah)
-- [ ] **Toko Suvenir (Boutique de Souvenirs)** - belanjakan coins
-- [ ] **Profile Page** (galeri badges, statistik personal, settings)
-- [ ] **Lesson Viewer** (tab Materi + tab Quest)
-- [ ] **Quest Taking Interface** (antarmuka interaktif kuis)
-- [ ] Feed Pengumuman dari Guru
-- [ ] Combat de Boss (quest khusus akhir chapter)
-- [ ] Instant feedback saat jawab soal
-- [ ] Progress bar per chapter
-
-### **PRIORITAS MEDIUM:**
-
-#### **Badges System:**
-- [ ] Database table: `badges`, `student_badges`
-- [ ] Define badges (Roi de la Conjugaison, etc.)
-- [ ] Auto-award badges based on achievements
-- [ ] Display badges di profile
-
-#### **Daily Missions:**
-- [ ] Database table: `daily_missions`, `student_missions`
-- [ ] Mission templates (complete 3 quests, answer 10 questions, etc.)
-- [ ] Daily reset mechanism
-- [ ] Progress tracking
-- [ ] Reward distribution
-
-#### **Shop Items:**
-- [ ] Database table: `shop_items`, `student_items`
-- [ ] Avatar frames (bingkai avatar)
-- [ ] Profile themes
-- [ ] Purchase system
-- [ ] Inventory management
-
-#### **Announcements:**
-- [ ] Database table: `announcements`
-- [ ] Create announcement (guru)
-- [ ] View announcements (siswa)
-- [ ] Notification system
-
-#### **Lesson Materials:**
-- [ ] Database table: `lesson_materials`
-- [ ] Rich text editor (TipTap / Quill)
-- [ ] Upload PDF, image, audio, video to Supabase Storage
-- [ ] Material viewer untuk siswa
-
-### **PRIORITAS LOW:**
-
-- [ ] Export laporan PDF
-- [ ] Email notifications
+### Prioritas Medium
+- [ ] Profile achievements gallery
 - [ ] Push notifications
+- [ ] Combat de Boss (chapter final quest)
+- [ ] Question bank/library
+- [ ] Bulk question import
+
+### Prioritas Low
 - [ ] Dark mode
-- [ ] Multi-language support
-- [ ] Accessibility improvements
+- [ ] Multi-language
 - [ ] Mobile app (React Native)
 
 ---
 
-##  CODE CONVENTIONS & BEST PRACTICES
-
-### **Naming Conventions:**
-- **Components**: PascalCase (`DashboardLayout.jsx`)
-- **Functions**: camelCase (`fetchDashboardData`)
-- **Constants**: UPPER_SNAKE_CASE (`SUPABASE_URL`)
-- **Files**: PascalCase for components, camelCase for utilities
-
-### **Database:**
-- Table names: lowercase plural (`classes`, `quests`)
-- Column names: snake_case (`class_name`, `created_at`)
-- Foreign keys: `{table}_id` (`teacher_id`, `student_id`)
-- Primary keys: `id` (UUID)
-
-### **React Patterns:**
-- Functional components with hooks
-- useState for local state
-- useEffect for side effects
-- useNavigate for routing
-- Custom hooks in `/lib` if needed
-
-### **Supabase Queries:**
-- Use `select()` with specific columns
-- Use `eq()`, `in()`, `order()` for filtering
-- Use `single()` for single row
-- Use `maybeSingle()` if row might not exist
-- Always handle errors with try/catch
-
-### **Styling:**
-- Tailwind CSS utility classes
-- Responsive design (mobile-first)
-- Consistent color scheme:
-  - Primary: Blue (`bg-blue-600`)
-  - Success: Green (`bg-green-600`)
-  - Warning: Yellow (`bg-yellow-600`)
-  - Danger: Red (`bg-red-600`)
-
----
-
-##  ENVIRONMENT VARIABLES
-
-Create `.env` file di root:
-
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-Access dalam code:
-```javascript
-import.meta.env.VITE_SUPABASE_URL
-import.meta.env.VITE_SUPABASE_ANON_KEY
-```
-
----
-
-##  REFERENSI & RESOURCES
-
-### **Documentation:**
-- React: https://react.dev
-- Vite: https://vitejs.dev
-- Tailwind CSS: https://tailwindcss.com
-- Supabase: https://supabase.com/docs
-
-### **Libraries Used:**
-- `react` v18.3.1
-- `react-dom` v18.3.1
-- `react-router-dom` v7.1.1
-- `@supabase/supabase-js` v2.49.2
-- `tailwindcss` v4.0.0
-- `vite` v7.1.12
-
-### **Project Links:**
-- Blueprint: `d:\Personal Project\Parlio\blueprint`
-- Database Schema: `d:\Personal Project\Parlio\supabase/schema.sql`
-
----
-
-##  PROJECT STATUS
-
-**Current Phase:** Development  
-**Completion:** ~45% (core features + teacher navigation implemented)  
-**Next Priority:** 
-1. ✅ Teacher Navigation (COMPLETED)
-2. Implement remaining teacher features (Leaderboard, Reward, Reports)
-3. Visualisasi Menara Eiffel untuk siswa
-4. Lesson Viewer + Quest Taking Interface
-5. Badges & Daily Missions System
-
-**Last Updated:** 2025-01-24  
-**Maintained by:** AI Assistant (GitHub Copilot)
-
----
-
-** FOKUS UTAMA NEXT SPRINT:**
-1. Visualisasi Menara Eiffel (student class view)
-2. Lesson Viewer + Quest Taking Interface
-3. Leaderboard untuk Guru & Siswa
-4. Tab Materi di Lesson Builder
-5. Badges & Daily Missions System
-
+**Status:** Development (~65% complete)  
+**Maintained by:** AI Assistant (GitHub Copilot)  
 ** Let's build Parlio!**
