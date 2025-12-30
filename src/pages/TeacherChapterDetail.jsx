@@ -167,7 +167,7 @@ function TeacherChapterDetail() {
                 <h1 className="text-2xl font-bold mb-2">{chapter.title}</h1>
                 <p className="text-white/90 text-sm">{chapter.description || 'Tidak ada deskripsi'}</p>
               </div>
-              <div className="text-4xl ml-4">📚</div>
+              <div className="text-4xl ml-4"></div>
             </div>
 
             {/* Stats Row */}

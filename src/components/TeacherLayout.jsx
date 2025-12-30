@@ -162,9 +162,9 @@ export default function TeacherLayout({ children, rightPanel, showRightPanel = f
     { label: 'Dashboard', path: '/teacher/dashboard', icon: 'dashboard' },
     { label: 'Kelola Kelas', path: '/teacher/classes', icon: 'classes' },
     { label: 'Quest Builder', path: '/teacher/quest-builder', icon: 'questBuilder' },
-    { label: 'Leaderboard', path: '/teacher/leaderboard', icon: 'leaderboard', badge: 'Soon' },
-    { label: 'Reward', path: '/teacher/reward', icon: 'reward', badge: 'Soon' },
-    { label: 'Laporan', path: '/teacher/reports', icon: 'report', badge: 'Soon' },
+    { label: 'Leaderboard', path: '/teacher/leaderboard', icon: 'leaderboard' },
+    { label: 'Reward', path: '/teacher/reward', icon: 'reward' },
+    { label: 'Laporan', path: '/teacher/reports', icon: 'report' },
     { label: 'Akun', path: '/teacher/account', icon: 'account' }
   ]
 

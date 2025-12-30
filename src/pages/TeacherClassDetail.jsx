@@ -9,7 +9,7 @@ const TeacherClassDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('students')
+  const [activeTab, setActiveTab] = useState('chapters')
   const [classData, setClassData] = useState(null)
   const [students, setStudents] = useState([])
   const [chapters, setChapters] = useState([])
@@ -281,10 +281,10 @@ const TeacherClassDetail = () => {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
               {[
-                { key: 'students', label: 'Siswa', icon: '👥' },
-                { key: 'chapters', label: 'Pelajaran', icon: '📚' },
-                { key: 'announcements', label: 'Pengumuman', icon: '📢' },
-                { key: 'leaderboard', label: 'Leaderboard', icon: '🏆' }
+                { key: 'chapters', label: 'Pelajaran', icon: '' },
+                { key: 'announcements', label: 'Pengumuman', icon: '' },
+                { key: 'leaderboard', label: 'Leaderboard', icon: '' },
+                { key: 'students', label: 'Siswa', icon: '' }
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -304,79 +304,6 @@ const TeacherClassDetail = () => {
 
           {/* Tab Content */}
           <div className="p-6">
-            {/* Students Tab */}
-            {activeTab === 'students' && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-800">Daftar Siswa ({students.length})</h2>
-                  <button
-                    onClick={() => setShowAddStudentModal(true)}
-                    className="px-4 py-2 bg-[#1E258F] text-white rounded hover:bg-[#161c6e]"
-                  >
-                    + Tambah Siswa
-                  </button>
-                </div>
-
-                {students.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <div className="w-32 h-32 mx-auto mb-4">
-                      <DotLottieReact
-                        src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
-                        loop
-                        autoplay
-                      />
-                    </div>
-                    <p className="text-gray-500">Belum ada siswa di kelas ini</p>
-                    
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">XP</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coins</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {students.map((item) => (
-                          <tr key={item.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-black">{item.student.full_name}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.student.email}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                {item.student.xp_points} XP
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                {item.student.coins} 💰
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <button
-                                onClick={() => setStudentToRemove(item.student)}
-                                className="text-red-600 hover:text-red-800 font-medium"
-                              >
-                                Hapus
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Chapters Tab */}
             {activeTab === 'chapters' && (
               <div className="space-y-4">
@@ -425,7 +352,7 @@ const TeacherClassDetail = () => {
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex items-start gap-4 flex-1">
-                            <div className="text-5xl">{item.chapter.icon || '�'}</div>
+                            <div className="text-5xl">{item.chapter.icon || ''}</div>
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-xl font-bold text-gray-800">{item.chapter.title}</h3>
@@ -445,7 +372,7 @@ const TeacherClassDetail = () => {
                               <div className="flex gap-4 text-sm">
                                 <div className="flex items-center gap-1 text-gray-700">
                                   <span className="font-semibold">📚 {item.lesson_count}</span>
-                                  <span className="text-gray-500">lessons</span>
+                                  <span className="text-gray-500">sub bab</span>
                                 </div>
                                 <div className="flex items-center gap-1 text-gray-700">
                                   <span className="font-semibold">⚔️ {item.quest_count}</span>
@@ -469,7 +396,7 @@ const TeacherClassDetail = () => {
                           {/* Actions */}
                           <div className="flex flex-col gap-2">
                             <button
-                              onClick={() => navigate(`/teacher/quest-builder?chapter=${item.chapter.id}`)}
+                              onClick={() => navigate(`/teacher/classes/${id}/chapter/${item.chapter.id}`)}
                               className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
                             >
                               Lihat Detail
@@ -488,6 +415,67 @@ const TeacherClassDetail = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Students Tab */}
+            {activeTab === 'students' && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-gray-800">Daftar Siswa ({students.length})</h2>
+                  <button
+                    onClick={() => setShowAddStudentModal(true)}
+                    className="px-4 py-2 bg-[#1E258F] text-white rounded hover:bg-[#161c6e]"
+                  >
+                    + Tambah Siswa
+                  </button>
+                </div>
+
+                {students.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <div className="w-32 h-32 mx-auto mb-4">
+                      <DotLottieReact
+                        src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                        loop
+                        autoplay
+                      />
+                    </div>
+                    <p className="text-gray-500">Belum ada siswa di kelas ini</p>
+                    
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {students.map((item) => (
+                          <tr key={item.student_id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-medium text-black">{item.student.full_name}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.student.email}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <button
+                                onClick={() => setStudentToRemove(item.student)}
+                                className="text-red-600 hover:text-red-800 font-medium"
+                              >
+                                Hapus
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -562,7 +550,7 @@ const TeacherClassDetail = () => {
                     onClick={fetchLeaderboard}
                     className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded hover:bg-gray-50"
                   >
-                    🔄 Refresh
+                    Refresh
                   </button>
                 </div>
 
@@ -833,7 +821,7 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
         <div className="flex-1 overflow-y-auto p-6">
           {availableChapters.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-5xl mb-3">�</div>
+              <div className="text-5xl mb-3"></div>
               <p className="text-gray-500 mb-4">Tidak ada pelajaran yang tersedia</p>
               <p className="text-sm text-gray-400 mb-6">
                 Buat pelajaran baru terlebih dahulu
@@ -867,7 +855,7 @@ const AssignChapterModal = ({ classId, existingChapterIds, onClose, onSuccess })
                       onChange={() => handleToggleChapter(chapter.id)}
                       className="mt-1 h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                     />
-                    <div className="text-3xl">{chapter.icon || '�'}</div>
+                    <div className="text-3xl">{chapter.icon || ''}</div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-semibold text-gray-800">{chapter.title}</h4>

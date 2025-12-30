@@ -8,6 +8,7 @@ import SuperAdminMotivationalMessages from './pages/SuperAdminMotivationalMessag
 import TeacherDashboard from './pages/TeacherDashboard'
 import TeacherClasses from './pages/TeacherClasses'
 import TeacherClassDetail from './pages/TeacherClassDetail'
+import TeacherClassChapterDetail from './pages/TeacherClassChapterDetail'
 import TeacherQuestBuilder from './pages/TeacherQuestBuilder'
 import TeacherChapterDetail from './pages/TeacherChapterDetail'
 import TeacherLessonDetail from './pages/TeacherLessonDetail'
@@ -48,6 +49,7 @@ function App() {
         <Route path="/teacher/dashboard" element={<ProtectedRoute allowedRoles={['guru']}><TeacherDashboard /></ProtectedRoute>} />
         <Route path="/teacher/classes" element={<ProtectedRoute allowedRoles={['guru']}><TeacherClasses /></ProtectedRoute>} />
         <Route path="/teacher/classes/:id" element={<ProtectedRoute allowedRoles={['guru']}><TeacherClassDetail /></ProtectedRoute>} />
+        <Route path="/teacher/classes/:id/chapter/:chapterId" element={<ProtectedRoute allowedRoles={['guru']}><TeacherClassChapterDetail /></ProtectedRoute>} />
         <Route path="/teacher/quest-builder" element={<ProtectedRoute allowedRoles={['guru']}><TeacherQuestBuilder /></ProtectedRoute>} />
         <Route path="/teacher/quest-builder/chapter/:chapterId" element={<ProtectedRoute allowedRoles={['guru']}><TeacherChapterDetail /></ProtectedRoute>} />
         <Route path="/teacher/quest-builder/lesson/:lessonId" element={<ProtectedRoute allowedRoles={['guru']}><TeacherLessonDetail /></ProtectedRoute>} />

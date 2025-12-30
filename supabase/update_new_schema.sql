@@ -260,7 +260,7 @@ CREATE TABLE public.quests (
   coins_reward integer DEFAULT 25,
   badge_id integer,
   difficulty text DEFAULT 'medium'::text,
-  min_score_to_pass integer DEFAULT 70,
+  min_score_to_pass integer DEFAULT 60,
   max_attempts integer DEFAULT 3,
   time_limit_minutes integer,
   is_published boolean DEFAULT false,
@@ -285,6 +285,22 @@ CREATE TABLE public.quizzes (
   CONSTRAINT quizzes_pkey PRIMARY KEY (id),
   CONSTRAINT quizzes_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id),
   CONSTRAINT quizzes_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.saved_reports (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  saved_by uuid NOT NULL,
+  class_id integer NOT NULL,
+  chapter_id integer,
+  lesson_id integer,
+  report_name text NOT NULL,
+  report_data jsonb NOT NULL,
+  notes text,
+  saved_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT saved_reports_pkey PRIMARY KEY (id),
+  CONSTRAINT saved_reports_saved_by_fkey FOREIGN KEY (saved_by) REFERENCES public.profiles(id),
+  CONSTRAINT saved_reports_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT saved_reports_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id),
+  CONSTRAINT saved_reports_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES public.lessons(id)
 );
 CREATE TABLE public.student_answers (
   id bigint NOT NULL DEFAULT nextval('student_answers_id_seq'::regclass),
