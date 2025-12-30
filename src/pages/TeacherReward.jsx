@@ -134,24 +134,53 @@ function TeacherReward() {
 
     setGiving(true)
     try {
-      // Give XP
-      if (quickRewardXp > 0) {
-        const { error: xpError } = await supabase.rpc('give_reward', {
-          student_id: selectedStudent.id,
-          reward_type: 'xp',
-          amount: quickRewardXp
-        })
-        if (xpError) throw xpError
-      }
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
 
-      // Give Coins
-      if (quickRewardCoins > 0) {
-        const { error: coinsError } = await supabase.rpc('give_reward', {
+      // Try new function first, fallback to old method
+      const { error: newFuncError } = await supabase.rpc('give_reward_with_history', {
+        p_student_id: selectedStudent.id,
+        p_teacher_id: user.id,
+        p_class_id: selectedClass || null,
+        p_xp_amount: quickRewardXp,
+        p_coins_amount: quickRewardCoins,
+        p_reason: rewardReason
+      })
+
+      // If new function doesn't exist, use old method
+      if (newFuncError && newFuncError.message.includes('does not exist')) {
+        // Give XP
+        if (quickRewardXp > 0) {
+          const { error: xpError } = await supabase.rpc('give_reward', {
+            student_id: selectedStudent.id,
+            reward_type: 'xp',
+            amount: quickRewardXp
+          })
+          if (xpError) throw xpError
+        }
+
+        // Give Coins
+        if (quickRewardCoins > 0) {
+          const { error: coinsError } = await supabase.rpc('give_reward', {
+            student_id: selectedStudent.id,
+            reward_type: 'coins',
+            amount: quickRewardCoins
+          })
+          if (coinsError) throw coinsError
+        }
+
+        // Try to log to reward_history (might not exist)
+        await supabase.from('reward_history').insert({
           student_id: selectedStudent.id,
-          reward_type: 'coins',
-          amount: quickRewardCoins
-        })
-        if (coinsError) throw coinsError
+          teacher_id: user.id,
+          class_id: selectedClass || null,
+          reward_type: 'both',
+          xp_amount: quickRewardXp,
+          coins_amount: quickRewardCoins,
+          reason: rewardReason
+        }).catch(() => {}) // Ignore error if table doesn't exist
+      } else if (newFuncError) {
+        throw newFuncError
       }
 
       toast.success(`Berhasil memberikan ${quickRewardXp} XP dan ${quickRewardCoins} Coins ke ${selectedStudent.full_name}!`)
@@ -203,6 +232,17 @@ function TeacherReward() {
         console.error('RPC error:', rpcError)
         throw rpcError
       }
+
+      // Try to log to reward_history (might not exist yet)
+      await supabase.from('reward_history').insert({
+        student_id: selectedStudent.id,
+        teacher_id: user.id,
+        class_id: selectedClass || null,
+        reward_type: rewardType,
+        xp_amount: rewardType === 'xp' ? rewardAmount : 0,
+        coins_amount: rewardType === 'coins' ? rewardAmount : 0,
+        reason: rewardReason || `Manual ${rewardType.toUpperCase()} reward`
+      }).catch(() => {}) // Ignore error if table doesn't exist
 
       toast.success(`Berhasil memberikan ${rewardAmount} ${rewardType.toUpperCase()} ke ${selectedStudent.full_name}!`)
       

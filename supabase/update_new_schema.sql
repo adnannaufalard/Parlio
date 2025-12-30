@@ -286,6 +286,21 @@ CREATE TABLE public.quizzes (
   CONSTRAINT quizzes_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id),
   CONSTRAINT quizzes_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
 );
+CREATE TABLE public.reward_history (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  student_id uuid NOT NULL,
+  teacher_id uuid NOT NULL,
+  class_id integer,
+  reward_type text NOT NULL CHECK (reward_type = ANY (ARRAY['xp'::text, 'coins'::text, 'both'::text])),
+  xp_amount integer DEFAULT 0,
+  coins_amount integer DEFAULT 0,
+  reason text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reward_history_pkey PRIMARY KEY (id),
+  CONSTRAINT reward_history_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.profiles(id),
+  CONSTRAINT reward_history_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.profiles(id),
+  CONSTRAINT reward_history_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id)
+);
 CREATE TABLE public.saved_reports (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   saved_by uuid NOT NULL,

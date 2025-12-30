@@ -148,15 +148,195 @@ function TeacherDashboard() {
 
       setRecentClasses(classesWithStudents.slice(0, 4))
 
-      // Generate recent activities from classes (dummy data for now)
-      const activities = classesWithStudents.slice(0, 5).map((c, i) => ({
-        id: i,
-        type: i % 2 === 0 ? 'class_created' : 'student_joined',
-        title: i % 2 === 0 ? `Kelas "${c.class_name}" dibuat` : `Siswa bergabung di "${c.class_name}"`,
-        time: formatRelativeTime(c.created_at),
-        icon: i % 2 === 0 ? 'class' : 'user'
+      // Fetch real activities from multiple sources
+      const classIds = (classes || []).map(c => c.id)
+      const classMap = Object.fromEntries((classes || []).map(c => [c.id, c.class_name]))
+      const allActivities = []
+
+      // 1. Quest attempts (siswa menyelesaikan quest)
+      if (classIds.length > 0) {
+        const { data: questAttempts } = await supabase
+          .from('student_quest_attempts')
+          .select('id, score, is_passed, completed_at, student_id, quest_id')
+          .not('completed_at', 'is', null)
+          .order('completed_at', { ascending: false })
+          .limit(20)
+
+        if (questAttempts && questAttempts.length > 0) {
+          // Get student names
+          const studentIds = [...new Set(questAttempts.map(a => a.student_id))]
+          const { data: studentsData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', studentIds)
+          const studentMap = Object.fromEntries((studentsData || []).map(s => [s.id, s.full_name]))
+
+          // Get quest info
+          const questIds = [...new Set(questAttempts.map(a => a.quest_id))]
+          const { data: questsData } = await supabase
+            .from('quests')
+            .select('id, title, class_id')
+            .in('id', questIds)
+          const questMap = Object.fromEntries((questsData || []).map(q => [q.id, q]))
+
+          questAttempts.forEach(attempt => {
+            const quest = questMap[attempt.quest_id]
+            const studentName = studentMap[attempt.student_id]
+            if (quest && studentName && classIds.includes(quest.class_id)) {
+              allActivities.push({
+                id: `quest_${attempt.id}`,
+                type: 'quest_completed',
+                title: `${studentName} menyelesaikan quest "${quest.title}"`,
+                subtitle: attempt.is_passed 
+                  ? `✅ Lulus dengan skor ${attempt.score}%` 
+                  : `❌ Belum lulus (${attempt.score}%)`,
+                time: attempt.completed_at,
+                icon: 'quest',
+                color: attempt.is_passed ? 'emerald' : 'amber'
+              })
+            }
+          })
+        }
+      }
+
+      // 2. Reward history (guru memberikan reward)
+      const { data: rewards } = await supabase
+        .from('reward_history')
+        .select('id, student_id, xp_amount, coins_amount, reason, created_at, class_id')
+        .eq('teacher_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      
+      if (rewards && rewards.length > 0) {
+        const studentIds = [...new Set(rewards.map(r => r.student_id))]
+        const { data: studentsData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', studentIds)
+        const studentMap = Object.fromEntries((studentsData || []).map(s => [s.id, s.full_name]))
+
+        rewards.forEach(reward => {
+          const studentName = studentMap[reward.student_id] || 'Siswa'
+          const rewardText = []
+          if (reward.xp_amount > 0) rewardText.push(`+${reward.xp_amount} XP`)
+          if (reward.coins_amount > 0) rewardText.push(`+${reward.coins_amount} Coins`)
+          
+          allActivities.push({
+            id: `reward_${reward.id}`,
+            type: 'reward_given',
+            title: `${studentName} mendapat reward`,
+            subtitle: `🎁 ${rewardText.join(' & ')}${reward.reason ? ` - ${reward.reason}` : ''}`,
+            time: reward.created_at,
+            icon: 'check',
+            color: 'purple'
+          })
+        })
+      }
+
+      // 3. New class members (siswa bergabung ke kelas)
+      if (classIds.length > 0) {
+        const { data: newMembers } = await supabase
+          .from('class_members')
+          .select('id, joined_at, student_id, class_id')
+          .in('class_id', classIds)
+          .order('joined_at', { ascending: false })
+          .limit(10)
+
+        if (newMembers && newMembers.length > 0) {
+          const studentIds = [...new Set(newMembers.map(m => m.student_id))]
+          const { data: studentsData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', studentIds)
+          const studentMap = Object.fromEntries((studentsData || []).map(s => [s.id, s.full_name]))
+
+          newMembers.forEach(member => {
+            const studentName = studentMap[member.student_id]
+            const className = classMap[member.class_id]
+            if (studentName && className) {
+              allActivities.push({
+                id: `member_${member.id}`,
+                type: 'student_joined',
+                title: `${studentName} bergabung ke kelas`,
+                subtitle: `📚 ${className}`,
+                time: member.joined_at,
+                icon: 'user',
+                color: 'blue'
+              })
+            }
+          })
+        }
+      }
+
+      // 4. Classes created
+      ;(classes || []).forEach(classItem => {
+        allActivities.push({
+          id: `class_${classItem.id}`,
+          type: 'class_created',
+          title: `Kelas "${classItem.class_name}" dibuat`,
+          subtitle: `🔑 Kode: ${classItem.class_code}`,
+          time: classItem.created_at,
+          icon: 'class',
+          color: 'indigo'
+        })
+      })
+
+      // 5. Chapters created
+      if (classIds.length > 0) {
+        const { data: chapters } = await supabase
+          .from('class_chapters')
+          .select('id, title, created_at, class_id')
+          .in('class_id', classIds)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        ;(chapters || []).forEach(chapter => {
+          const className = classMap[chapter.class_id]
+          if (className) {
+            allActivities.push({
+              id: `chapter_${chapter.id}`,
+              type: 'chapter_created',
+              title: `Chapter "${chapter.title}" ditambahkan`,
+              subtitle: `📖 ${className}`,
+              time: chapter.created_at,
+              icon: 'chapter',
+              color: 'amber'
+            })
+          }
+        })
+      }
+
+      // 6. Quests created
+      const { data: quests } = await supabase
+        .from('quests')
+        .select('id, title, created_at, class_id')
+        .eq('teacher_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      ;(quests || []).forEach(quest => {
+        const className = classMap[quest.class_id]
+        if (className) {
+          allActivities.push({
+            id: `quest_created_${quest.id}`,
+            type: 'quest_created',
+            title: `Quest "${quest.title}" dibuat`,
+            subtitle: `🎮 ${className}`,
+            time: quest.created_at,
+            icon: 'quest',
+            color: 'purple'
+          })
+        }
+      })
+
+      // Sort all activities by time and take top 15
+      allActivities.sort((a, b) => new Date(b.time) - new Date(a.time))
+      const formattedActivities = allActivities.slice(0, 15).map(activity => ({
+        ...activity,
+        time: formatRelativeTime(activity.time)
       }))
-      setRecentActivities(activities)
+      
+      setRecentActivities(formattedActivities)
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -186,51 +366,69 @@ function TeacherDashboard() {
   }
 
   // Right Activity Panel Component
-  const ActivityPanel = () => (
-    <div className="h-full flex flex-col">
-      {/* Panel Header */}
-      <div className="p-6 border-b border-slate-200">
-        <h3 className="text-lg font-semibold text-slate-800">Aktivitas Terbaru</h3>
-        <p className="text-sm text-slate-500 mt-1">Pembaruan kelas dan siswa</p>
-      </div>
+  const ActivityPanel = () => {
+    const getColorClass = (color) => {
+      const colors = {
+        indigo: 'bg-[#1E258F]/10 text-[#1E258F]',
+        emerald: 'bg-emerald-100 text-emerald-600',
+        blue: 'bg-blue-100 text-blue-600',
+        amber: 'bg-amber-100 text-amber-600',
+        purple: 'bg-purple-100 text-purple-600',
+        red: 'bg-red-100 text-red-600'
+      }
+      return colors[color] || colors.indigo
+    }
 
-      {/* Activities List */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {recentActivities.length === 0 ? (
-          <EmptyState 
-            title="Belum ada aktivitas"
-            description="Aktivitas akan muncul di sini"
-          />
-        ) : (
-          <div className="space-y-3">
-            {recentActivities.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
-              >
-                <div className={`p-2 rounded-lg flex-shrink-0 ${
-                  activity.icon === 'class' ? 'bg-[#1E258F]/10 text-[#1E258F]' : 'bg-emerald-100 text-emerald-600'
-                }`}>
-                  <Icon name={activity.icon} className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-700 line-clamp-2">{activity.title}</p>
-                  <p className="text-xs text-slate-400 mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+    return (
+      <div className="h-full flex flex-col">
+        {/* Panel Header */}
+        <div className="p-6 border-b border-slate-200">
+          <h3 className="text-lg font-semibold text-slate-800">Aktivitas Terbaru</h3>
+          <p className="text-sm text-slate-500 mt-1">Pembaruan kelas, siswa & quest</p>
+        </div>
 
-      {/* Panel Footer */}
-      <div className="p-4 border-t border-slate-200">
-        <button className="w-full text-center text-sm text-[#1E258F] hover:text-[#1E258F]/80 font-medium">
-          Lihat semua aktivitas
-        </button>
+        {/* Activities List */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+          {recentActivities.length === 0 ? (
+            <EmptyState 
+              title="Belum ada aktivitas"
+              description="Aktivitas akan muncul di sini"
+            />
+          ) : (
+            <div className="space-y-3">
+              {recentActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
+                >
+                  <div className={`p-2 rounded-lg flex-shrink-0 ${getColorClass(activity.color)}`}>
+                    <Icon name={activity.icon} className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-700 line-clamp-2">{activity.title}</p>
+                    {activity.subtitle && (
+                      <p className="text-xs text-slate-500 mt-0.5">{activity.subtitle}</p>
+                    )}
+                    <p className="text-xs text-slate-400 mt-1">{activity.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Panel Footer */}
+        <div className="p-4 border-t border-slate-200">
+          <button 
+            onClick={() => navigate('/teacher/reports')}
+            className="w-full text-center text-sm text-[#1E258F] hover:text-[#1E258F]/80 font-medium"
+          >
+            Lihat laporan lengkap →
+          </button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   if (loading) {
     return (
@@ -299,7 +497,7 @@ function TeacherDashboard() {
               </div>
             </div>
             <p className="text-2xl font-bold text-slate-800">{stats.totalChapters}</p>
-            <p className="text-sm text-slate-500 mt-1">Total Chapter</p>
+            <p className="text-sm text-slate-500 mt-1">Total Pelajaran</p>
           </div>
 
           {/* Total Quest */}
