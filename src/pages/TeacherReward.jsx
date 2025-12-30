@@ -27,10 +27,29 @@ function TeacherReward() {
   const [showModal, setShowModal] = useState(false)
   const [giving, setGiving] = useState(false)
   const [rewardHistory, setRewardHistory] = useState([])
+  
+  // Quick reward states
+  const [quickRewardXp, setQuickRewardXp] = useState(0)
+  const [quickRewardCoins, setQuickRewardCoins] = useState(0)
+  const [isQuickReward, setIsQuickReward] = useState(false)
+  
+  // Settings states
+  const [showSettings, setShowSettings] = useState(false)
+  const [quickRewardPresets, setQuickRewardPresets] = useState(() => {
+    // Load from localStorage or use defaults
+    const saved = localStorage.getItem('quickRewardPresets')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch {
+        return getDefaultPresets()
+      }
+    }
+    return getDefaultPresets()
+  })
 
   useEffect(() => {
     fetchTeacherClasses()
-    fetchRewardHistory()
   }, [])
 
   useEffect(() => {
@@ -84,6 +103,78 @@ function TeacherReward() {
     setRewardHistory([])
   }
 
+  function getDefaultPresets() {
+    return [
+      { id: 1, label: 'Aktif di Kelas', xp: 10, coins: 5, icon: '🙋' },
+      { id: 2, label: 'Membantu Teman', xp: 15, coins: 10, icon: '🤝' },
+      { id: 3, label: 'Tugas Tepat Waktu', xp: 20, coins: 15, icon: '⏰' },
+      { id: 4, label: 'Nilai Sempurna', xp: 50, coins: 25, icon: '💯' },
+      { id: 5, label: 'Siswa Terbaik Minggu Ini', xp: 100, coins: 50, icon: '🌟' },
+    ]
+  }
+
+  const savePresets = (presets) => {
+    setQuickRewardPresets(presets)
+    localStorage.setItem('quickRewardPresets', JSON.stringify(presets))
+  }
+
+  const handleQuickRewardClick = (preset) => {
+    setIsQuickReward(true)
+    setQuickRewardXp(preset.xp)
+    setQuickRewardCoins(preset.coins)
+    setRewardReason(preset.label)
+    setShowModal(true)
+  }
+
+  const handleGiveQuickReward = async () => {
+    if (!selectedStudent) {
+      toast.error('Pilih siswa terlebih dahulu')
+      return
+    }
+
+    setGiving(true)
+    try {
+      // Give XP
+      if (quickRewardXp > 0) {
+        const { error: xpError } = await supabase.rpc('give_reward', {
+          student_id: selectedStudent.id,
+          reward_type: 'xp',
+          amount: quickRewardXp
+        })
+        if (xpError) throw xpError
+      }
+
+      // Give Coins
+      if (quickRewardCoins > 0) {
+        const { error: coinsError } = await supabase.rpc('give_reward', {
+          student_id: selectedStudent.id,
+          reward_type: 'coins',
+          amount: quickRewardCoins
+        })
+        if (coinsError) throw coinsError
+      }
+
+      toast.success(`Berhasil memberikan ${quickRewardXp} XP dan ${quickRewardCoins} Coins ke ${selectedStudent.full_name}!`)
+      
+      // Reset form
+      setShowModal(false)
+      setSelectedStudent(null)
+      setIsQuickReward(false)
+      setQuickRewardXp(0)
+      setQuickRewardCoins(0)
+      setRewardReason('')
+      
+      // Refresh data
+      fetchStudents()
+
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Gagal memberikan reward')
+    } finally {
+      setGiving(false)
+    }
+  }
+
   const handleGiveReward = async () => {
     if (!selectedStudent || rewardAmount <= 0) {
       toast.error('Pilih siswa dan masukkan jumlah reward')
@@ -95,30 +186,22 @@ function TeacherReward() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      // Update student's XP or Coins
-      const updateField = rewardType === 'xp' ? 'xp_points' : 'coins'
-      const currentValue = selectedStudent[updateField] || 0
+      console.log('Giving reward:', { 
+        studentId: selectedStudent.id, 
+        type: rewardType, 
+        amount: rewardAmount 
+      })
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ [updateField]: currentValue + rewardAmount })
-        .eq('id', selectedStudent.id)
+      // Use RPC function to give reward (bypasses RLS)
+      const { error: rpcError } = await supabase.rpc('give_reward', {
+        student_id: selectedStudent.id,
+        reward_type: rewardType,
+        amount: rewardAmount
+      })
 
-      if (updateError) throw updateError
-
-      // Try to save reward history (table might not exist)
-      try {
-        await supabase
-          .from('reward_history')
-          .insert({
-            teacher_id: user.id,
-            student_id: selectedStudent.id,
-            reward_type: rewardType,
-            amount: rewardAmount,
-            reason: rewardReason || 'Reward dari guru'
-          })
-      } catch (historyError) {
-        console.log('Reward history table not available')
+      if (rpcError) {
+        console.error('RPC error:', rpcError)
+        throw rpcError
       }
 
       toast.success(`Berhasil memberikan ${rewardAmount} ${rewardType.toUpperCase()} ke ${selectedStudent.full_name}!`)
@@ -131,7 +214,6 @@ function TeacherReward() {
       
       // Refresh data
       fetchStudents()
-      fetchRewardHistory()
 
     } catch (error) {
       console.error('Error:', error)
@@ -141,13 +223,7 @@ function TeacherReward() {
     }
   }
 
-  const quickRewardPresets = [
-    { label: 'Aktif di Kelas', xp: 10, coins: 5, icon: '🙋' },
-    { label: 'Membantu Teman', xp: 15, coins: 10, icon: '🤝' },
-    { label: 'Tugas Tepat Waktu', xp: 20, coins: 15, icon: '⏰' },
-    { label: 'Nilai Sempurna', xp: 50, coins: 25, icon: '💯' },
-    { label: 'Siswa Terbaik Minggu Ini', xp: 100, coins: 50, icon: '🌟' },
-  ]
+  const iconOptions = ['🙋', '🤝', '⏰', '💯', '🌟', '🎯', '📚', '✨', '🏆', '💪', '🎓', '👏', '🔥', '💡', '🎁']
 
   if (loading) {
     return (
@@ -175,17 +251,20 @@ function TeacherReward() {
 
         {/* Quick Rewards */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">⚡ Quick Rewards</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-800">⚡ Quick Rewards</h2>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition flex items-center gap-1"
+            >
+              ⚙️ Atur
+            </button>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {quickRewardPresets.map((preset, idx) => (
+            {quickRewardPresets.map((preset) => (
               <button
-                key={idx}
-                onClick={() => {
-                  setRewardType('xp')
-                  setRewardAmount(preset.xp)
-                  setRewardReason(preset.label)
-                  setShowModal(true)
-                }}
+                key={preset.id}
+                onClick={() => handleQuickRewardClick(preset)}
                 className="p-4 border-2 border-dashed border-purple-200 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition text-center"
               >
                 <div className="text-3xl mb-2">{preset.icon}</div>
@@ -361,10 +440,26 @@ function TeacherReward() {
           <div className="bg-white rounded-xl max-w-md w-full p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4">🎁 Berikan Reward</h3>
             
-            <div className="bg-purple-50 rounded-lg p-4 mb-4">
-              <p className="text-sm text-purple-600">{rewardReason}</p>
-              <p className="text-2xl font-bold text-purple-900">+{rewardAmount} XP</p>
-            </div>
+            {isQuickReward ? (
+              <div className="bg-gradient-to-r from-purple-50 to-yellow-50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-600 mb-2">{rewardReason}</p>
+                <div className="flex gap-4">
+                  <div className="flex-1 text-center">
+                    <p className="text-2xl font-bold text-purple-600">+{quickRewardXp}</p>
+                    <p className="text-xs text-purple-500">XP</p>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <p className="text-2xl font-bold text-yellow-600">+{quickRewardCoins}</p>
+                    <p className="text-xs text-yellow-500">Coins</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-purple-50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-purple-600">{rewardReason}</p>
+                <p className="text-2xl font-bold text-purple-900">+{rewardAmount} {rewardType.toUpperCase()}</p>
+              </div>
+            )}
 
             <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Kelas</label>
             <select
@@ -394,9 +489,15 @@ function TeacherReward() {
                         <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-semibold text-sm">
                           {student.full_name?.charAt(0)}
                         </div>
-                        <span className="font-medium text-gray-800">{student.full_name}</span>
+                        <div className="flex-1">
+                          <span className="font-medium text-gray-800">{student.full_name}</span>
+                          <div className="flex gap-2 text-xs text-gray-500">
+                            <span>⭐ {student.xp_points || 0}</span>
+                            <span>🪙 {student.coins || 0}</span>
+                          </div>
+                        </div>
                         {selectedStudent?.id === student.id && (
-                          <span className="ml-auto text-purple-600">✓</span>
+                          <span className="text-purple-600">✓</span>
                         )}
                       </div>
                     </button>
@@ -410,17 +511,165 @@ function TeacherReward() {
                 onClick={() => {
                   setShowModal(false)
                   setSelectedStudent(null)
+                  setIsQuickReward(false)
                 }}
                 className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Batal
               </button>
               <button
-                onClick={handleGiveReward}
+                onClick={isQuickReward ? handleGiveQuickReward : handleGiveReward}
                 disabled={!selectedStudent || giving}
                 className="flex-1 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
               >
                 {giving ? 'Memberikan...' : 'Berikan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-800">⚙️ Pengaturan Quick Rewards</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {quickRewardPresets.map((preset, index) => (
+                <div key={preset.id} className="bg-gray-50 rounded-lg p-4">
+                  <div className="grid grid-cols-12 gap-3 items-center">
+                    {/* Icon Selector */}
+                    <div className="col-span-2">
+                      <label className="block text-xs text-gray-500 mb-1">Icon</label>
+                      <select
+                        value={preset.icon}
+                        onChange={(e) => {
+                          const newPresets = [...quickRewardPresets]
+                          newPresets[index].icon = e.target.value
+                          savePresets(newPresets)
+                        }}
+                        className="w-full px-2 py-2 border rounded-lg text-2xl text-center"
+                      >
+                        {iconOptions.map(icon => (
+                          <option key={icon} value={icon}>{icon}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {/* Label */}
+                    <div className="col-span-4">
+                      <label className="block text-xs text-gray-500 mb-1">Label</label>
+                      <input
+                        type="text"
+                        value={preset.label}
+                        onChange={(e) => {
+                          const newPresets = [...quickRewardPresets]
+                          newPresets[index].label = e.target.value
+                          savePresets(newPresets)
+                        }}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                        placeholder="Nama reward"
+                      />
+                    </div>
+                    
+                    {/* XP */}
+                    <div className="col-span-2">
+                      <label className="block text-xs text-gray-500 mb-1">XP</label>
+                      <input
+                        type="number"
+                        value={preset.xp}
+                        onChange={(e) => {
+                          const newPresets = [...quickRewardPresets]
+                          newPresets[index].xp = parseInt(e.target.value) || 0
+                          savePresets(newPresets)
+                        }}
+                        min="0"
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      />
+                    </div>
+                    
+                    {/* Coins */}
+                    <div className="col-span-2">
+                      <label className="block text-xs text-gray-500 mb-1">Coins</label>
+                      <input
+                        type="number"
+                        value={preset.coins}
+                        onChange={(e) => {
+                          const newPresets = [...quickRewardPresets]
+                          newPresets[index].coins = parseInt(e.target.value) || 0
+                          savePresets(newPresets)
+                        }}
+                        min="0"
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      />
+                    </div>
+                    
+                    {/* Delete */}
+                    <div className="col-span-2 flex justify-end">
+                      <button
+                        onClick={() => {
+                          if (quickRewardPresets.length > 1) {
+                            const newPresets = quickRewardPresets.filter((_, i) => i !== index)
+                            savePresets(newPresets)
+                          } else {
+                            toast.error('Minimal harus ada 1 preset')
+                          }
+                        }}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  const newId = Math.max(...quickRewardPresets.map(p => p.id)) + 1
+                  const newPresets = [...quickRewardPresets, {
+                    id: newId,
+                    label: 'Reward Baru',
+                    xp: 10,
+                    coins: 5,
+                    icon: '🎁'
+                  }]
+                  savePresets(newPresets)
+                }}
+                className="flex-1 py-2 border-2 border-dashed border-purple-300 text-purple-600 rounded-lg hover:bg-purple-50"
+              >
+                + Tambah Preset
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm('Reset ke pengaturan default?')) {
+                    savePresets(getDefaultPresets())
+                    toast.success('Preset di-reset ke default')
+                  }
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50"
+              >
+                Reset Default
+              </button>
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+              >
+                Selesai
               </button>
             </div>
           </div>
