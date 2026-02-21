@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { ActivityLogger } from '../lib/activityLogger'
 import Logo1 from '../assets/logo/1.png'
 import Logo2 from '../assets/logo/2.png'
 
@@ -47,11 +48,14 @@ function LoginPage() {
     }
     
     // Redirect based on role
-    if (profile.role === 'superadmin') {
+    if (profile.role === 'admin') {
+      await ActivityLogger.login()
       navigate('/admin/dashboard')
     } else if (profile.role === 'guru') {
+      await ActivityLogger.login()
       navigate('/teacher/dashboard')
     } else if (profile.role === 'siswa') {
+      await ActivityLogger.login()
       navigate('/student/dashboard')
     } else {
       setError('Unknown role')

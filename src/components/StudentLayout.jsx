@@ -19,78 +19,44 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { 
+  LayoutDashboard, 
+  GraduationCap, 
+  Trophy, 
+  ShoppingBag, 
+  User, 
+  Megaphone, 
+  Users, 
+  MessageCircle, 
+  Zap, 
+  Coins,
+  LogOut,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react'
 
 /**
- * Icon component untuk render SVG icons
+ * Icon component untuk render Lucide icons
  * @param {string} name - Nama icon yang akan di-render
  */
 function Icon({ name, className = "h-6 w-6" }) {
   const iconMap = {
-    dashboard: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-    ),
-    classes: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-      </svg>
-    ),
-    leaderboard: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-    reward: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    profile: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-      </svg>
-    ),
-    announcement: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-      </svg>
-    ),
-    members: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-    forum: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-      </svg>
-    ),
-    xp: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-    coin: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    logout: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-      </svg>
-    ),
-    expand: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-      </svg>
-    ),
-    collapse: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-      </svg>
-    )
+    dashboard: <LayoutDashboard className={className} />,
+    classes: <GraduationCap className={className} />,
+    leaderboard: <Trophy className={className} />,
+    store: <ShoppingBag className={className} />,
+    profile: <User className={className} />,
+    announcement: <Megaphone className={className} />,
+    members: <Users className={className} />,
+    forum: <MessageCircle className={className} />,
+    xp: <Zap className={className} />,
+    coin: <Coins className={className} />,
+    logout: <LogOut className={className} />,
+    expand: <ChevronRight className={className} />,
+    collapse: <ChevronLeft className={className} />,
   }
 
   return iconMap[name] || null
@@ -124,10 +90,10 @@ export default function StudentLayout({
       try {
         return JSON.parse(cached)
       } catch {
-        return { xp: 0, coins: 0, level: 1, currentStreak: 0, fullName: '', userId: '' }
+        return { xp: 0, coins: 0, level: 1, currentStreak: 0, fullName: '', userId: '', avatarUrl: '' }
       }
     }
-    return { xp: 0, coins: 0, level: 1, currentStreak: 0, fullName: '', userId: '' }
+    return { xp: 0, coins: 0, level: 1, currentStreak: 0, fullName: '', userId: '', avatarUrl: '' }
   })
 
   useEffect(() => {
@@ -147,7 +113,7 @@ export default function StudentLayout({
       // Fetch from profiles table
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('full_name, xp_points, coins')
+        .select('full_name, xp_points, coins, avatar_url')
         .eq('id', session.user.id)
         .single()
 
@@ -166,7 +132,8 @@ export default function StudentLayout({
           level: level,
           currentStreak: 0,
           fullName: profile.full_name || 'Student',
-          userId: session.user.id
+          userId: session.user.id,
+          avatarUrl: profile.avatar_url || ''
         }
         
         setStudentStats(newStats)
@@ -224,9 +191,9 @@ export default function StudentLayout({
       icon: 'leaderboard'
     },
     {
-      label: 'Reward',
+      label: 'Store',
       path: '/student/reward',
-      icon: 'reward'
+      icon: 'store'
     },
     {
       label: 'Profile',
@@ -307,7 +274,7 @@ export default function StudentLayout({
                   >
                     <Icon name={item.icon} className="h-5 w-5 flex-shrink-0" />
                     {sidebarExpanded && (
-                      <span className="text-sm font-semibold whitespace-nowrap">{item.label}</span>
+                      <span className="text-sm whitespace-nowrap">{item.label}</span>
                     )}
                   </button>
                 ))
@@ -332,7 +299,7 @@ export default function StudentLayout({
                     <Icon name={item.icon} className="h-5 w-5 flex-shrink-0" />
                     {sidebarExpanded && (
                       <>
-                        <span className="text-sm font-semibold whitespace-nowrap">{item.label}</span>
+                        <span className="text-sm whitespace-nowrap">{item.label}</span>
                         {item.badge && (
                           <span className="ml-auto bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
                             {item.badge}
@@ -396,24 +363,19 @@ export default function StudentLayout({
               <div className="flex items-center justify-between">
                 {/* User Profile - Avatar & Username */}
                 <Link to="/student/profile" className="flex items-center gap-3 group">
-                  {/* Avatar with animated gradient border */}
+                  {/* Avatar with gradient border */}
                   <div className="relative">
-                    {/* Animated gradient ring */}
-                    <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full opacity-75 group-hover:opacity-100 blur-sm group-hover:blur transition duration-300"></div>
+                    {/* Avatar container using Avatar component */}
+                    <Avatar className="h-10 w-10 ring-2 ring-offset-2 ring-blue-500 group-hover:ring-purple-500 transition-all duration-300">
+                      <AvatarImage src={studentStats.avatarUrl} alt={studentStats.fullName} />
+                      <AvatarFallback className="bg-blue-600 text-white font-bold text-base">
+                        {studentStats.fullName.charAt(0).toUpperCase() || 'S'}
+                      </AvatarFallback>
+                    </Avatar>
                     
-                    {/* Avatar container */}
-                    <div className="relative h-10 w-10 bg-white rounded-full p-0.5 ring-2 ring-white shadow-lg">
-                      <div className="h-full w-full bg-orange-500 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                        <span className="text-white font-bold text-base">
-                          {studentStats.fullName.charAt(0).toUpperCase() || 'S'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Online indicator with pulse */}
-                    <div className="absolute bottom-0 right-0">
+                    {/* Online indicator */}
+                    <div className="absolute -bottom-0.5 -right-0.5 z-10">
                       <div className="h-3 w-3 bg-green-400 border-2 border-white rounded-full"></div>
-                      <div className="absolute inset-0 h-3 w-3 bg-green-400 rounded-full animate-ping opacity-75"></div>
                     </div>
                   </div>
                   
@@ -487,7 +449,7 @@ export default function StudentLayout({
                       relative p-3.5 rounded-full transition-all duration-300
                       ${activeClassTab === item.value
                         ? 'bg-[#4450FF] text-white shadow-lg shadow-blue-500/50 scale-110'
-                        : 'text-gray-600 hover:bg-white/80 hover:text-blue-500'
+                        : 'text-gray-600 hover:bg-white/80 hover:text-gray-800'
                       }
                     `}
                     title={item.label}
@@ -511,7 +473,7 @@ export default function StudentLayout({
                       relative p-3.5 rounded-full transition-all duration-300
                       ${isActive(item.path)
                         ? 'bg-[#1E258F] text-white shadow-lg shadow-blue-500/50 scale-110'
-                        : 'text-gray-600 hover:bg-white/80 hover:text-blue-500'
+                        : 'text-gray-600 hover:bg-white/80 hover:text-gray-800'
                       }
                       ${item.badge ? 'opacity-40 cursor-not-allowed' : ''}
                     `}

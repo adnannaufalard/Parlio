@@ -289,6 +289,48 @@ function StudentTestingPanel() {
     }
   }
 
+  const handleResetPeriod = async () => {
+    if (!window.confirm('⚠️ Reset periode leaderboard?\n\nSemua data leaderboard_settings, leaderboard_badges akan dihapus.\n\nTidak bisa di-undo!')) return
+    
+    setLoading(true)
+    try {
+      console.log('=== RESET PERIOD START (RPC) ===')
+
+      // Use RPC function with SECURITY DEFINER to bypass RLS
+      const { data, error } = await supabase.rpc('reset_leaderboard_period')
+
+      if (error) {
+        console.error('❌ RPC Error:', error)
+        
+        // If RPC function doesn't exist, show helpful message
+        if (error.message.includes('function') || error.code === '42883') {
+          toast.error('⚠️ RPC function belum dibuat.\n\nJalankan SQL di supabase/migrations/reset_period_function.sql\nmelalui Supabase SQL Editor.', {
+            duration: 8000
+          })
+        } else {
+          toast.error(error.message || 'Gagal reset periode')
+        }
+        return
+      }
+
+      console.log('✅ RPC Result:', data)
+      
+      toast.success(`✅ Periode berhasil di-reset!\n\n${data.deleted_badges} badges & ${data.deleted_settings} settings dihapus.`, {
+        duration: 4000
+      })
+      
+      setTimeout(() => {
+        window.location.reload()
+      }, 1500)
+
+    } catch (error) {
+      console.error('❌ Error:', error)
+      toast.error(error.message || 'Gagal reset periode')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <StudentLayout showHeader={true} showBottomNav={true}>
       <div className="max-w-4xl mx-auto">
@@ -359,6 +401,15 @@ function StudentTestingPanel() {
               <span>⚠️</span>
               <span>{loading ? 'Loading...' : 'Reset ALL Progress'}</span>
             </button>
+
+            <button
+              onClick={handleResetPeriod}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white font-semibold rounded-lg transition-colors font-['Poppins']"
+            >
+              <span>🏆</span>
+              <span>{loading ? 'Loading...' : 'Reset Period'}</span>
+            </button>
           </div>
 
           <div className="mt-4 bg-gray-50 rounded-lg p-3">
@@ -367,7 +418,8 @@ function StudentTestingPanel() {
               • <strong>View Stats:</strong> Lihat statistik lengkap profile dan attempts<br/>
               • <strong>Reset All Attempts:</strong> Hapus SEMUA history quest attempts (XP/Coins TETAP)<br/>
               • <strong>Reset XP & Coins:</strong> Set XP dan Coins ke 0 (history attempts TETAP)<br/>
-              • <strong>Reset ALL Progress:</strong> Hapus SEMUA (history attempts + XP + Coins) → Start from scratch!
+              • <strong>Reset ALL Progress:</strong> Hapus SEMUA (history attempts + XP + Coins) → Start from scratch!<br/>
+              • <strong>Reset Period:</strong> Hapus SEMUA periode leaderboard dan badge
             </p>
           </div>
         </div>

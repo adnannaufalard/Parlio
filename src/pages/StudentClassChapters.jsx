@@ -5,6 +5,7 @@ import StudentLayout from '../components/StudentLayout'
 import UserInfoHeader from '../components/UserInfoHeader'
 import toast from 'react-hot-toast'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 
 function StudentClassChapters() {
   const navigate = useNavigate()
@@ -210,16 +211,15 @@ function StudentClassChapters() {
       const { data, error } = await supabase
         .from('class_members')
         .select(`
-          joined_at,
           student_id,
           profiles!inner(
             id,
             full_name,
-            email
+            email,
+            avatar_url
           )
         `)
         .eq('class_id', classId)
-        .order('joined_at', { ascending: false })
 
       if (error) {
         console.error('Error fetching members:', error)
@@ -227,7 +227,6 @@ function StudentClassChapters() {
       } else {
         // Transform data to match expected format
         const transformedData = (data || []).map(item => ({
-          joined_at: item.joined_at,
           student: item.profiles
         }))
         setMembers(transformedData)
@@ -244,7 +243,7 @@ function StudentClassChapters() {
         .from('class_forum_posts')
         .select(`
           *,
-          author:profiles!class_forum_posts_user_id_fkey(id, full_name)
+          author:profiles!class_forum_posts_user_id_fkey(id, full_name, avatar_url)
         `)
         .eq('class_id', classId)
         .order('created_at', { ascending: false })
@@ -263,35 +262,127 @@ function StudentClassChapters() {
 
   const fetchLeaderboard = async () => {
     try {
-      // Get all members with their XP from class
-      const { data: membersData, error } = await supabase
+      // Get class members first
+      const { data: membersData, error: membersError } = await supabase
         .from('class_members')
         .select(`
           student_id,
           profiles!inner(
             id,
             full_name,
-            xp_points
+            avatar_url
           )
         `)
         .eq('class_id', classId)
 
-      if (error) {
-        console.error('Error fetching leaderboard:', error)
+      if (membersError) {
+        console.error('Error fetching members:', membersError)
         setLeaderboardData([])
         return
       }
 
-      // Sort by XP
-      const sorted = (membersData || [])
-        .map(m => ({
+      if (!membersData || membersData.length === 0) {
+        setLeaderboardData([])
+        return
+      }
+
+      // Get chapters assigned to this class
+      const { data: classChapters } = await supabase
+        .from('class_chapters')
+        .select('chapter_id')
+        .eq('class_id', classId)
+        .eq('is_active', true)
+
+      if (!classChapters || classChapters.length === 0) {
+        // No chapters, show members with 0 score
+        const sorted = membersData.map(m => ({
           id: m.profiles.id,
           name: m.profiles.full_name,
-          xp: m.profiles.xp_points || 0
-        }))
-        .sort((a, b) => b.xp - a.xp)
+          avatar_url: m.profiles.avatar_url,
+          avg_score: 0,
+          quest_count: 0
+        })).sort((a, b) => a.name.localeCompare(b.name))
+        setLeaderboardData(sorted)
+        return
+      }
 
-      setLeaderboardData(sorted)
+      const chapterIds = classChapters.map(c => c.chapter_id)
+
+      // Get lessons in those chapters
+      const { data: lessons } = await supabase
+        .from('lessons')
+        .select('id')
+        .in('chapter_id', chapterIds)
+
+      if (!lessons || lessons.length === 0) {
+        const sorted = membersData.map(m => ({
+          id: m.profiles.id,
+          name: m.profiles.full_name,
+          avatar_url: m.profiles.avatar_url,
+          avg_score: 0,
+          quest_count: 0
+        })).sort((a, b) => a.name.localeCompare(b.name))
+        setLeaderboardData(sorted)
+        return
+      }
+
+      const lessonIds = lessons.map(l => l.id)
+
+      // Get quests in those lessons
+      const { data: quests } = await supabase
+        .from('quests')
+        .select('id')
+        .in('lesson_id', lessonIds)
+
+      if (!quests || quests.length === 0) {
+        const sorted = membersData.map(m => ({
+          id: m.profiles.id,
+          name: m.profiles.full_name,
+          avatar_url: m.profiles.avatar_url,
+          avg_score: 0,
+          quest_count: 0
+        })).sort((a, b) => a.name.localeCompare(b.name))
+        setLeaderboardData(sorted)
+        return
+      }
+
+      const questIds = quests.map(q => q.id)
+      const studentIds = membersData.map(m => m.student_id)
+
+      // Get scores from quest attempts for these quests by class members
+      const { data: attempts } = await supabase
+        .from('student_quest_attempts')
+        .select('student_id, score, max_score')
+        .in('quest_id', questIds)
+        .in('student_id', studentIds)
+
+      // Calculate avg score per student
+      const scoresByStudent = {}
+      ;(attempts || []).forEach(a => {
+        if (!scoresByStudent[a.student_id]) {
+          scoresByStudent[a.student_id] = { total: 0, max: 0, count: 0 }
+        }
+        scoresByStudent[a.student_id].total += a.score || 0
+        scoresByStudent[a.student_id].max += a.max_score || 0
+        scoresByStudent[a.student_id].count += 1
+      })
+
+      // Build leaderboard with class-specific scores
+      const leaderboardWithScores = membersData.map(m => {
+        const studentScores = scoresByStudent[m.student_id] || { total: 0, max: 0, count: 0 }
+        const avgScore = studentScores.max > 0 
+          ? Math.round((studentScores.total / studentScores.max) * 100) 
+          : 0
+        return {
+          id: m.profiles.id,
+          name: m.profiles.full_name,
+          avatar_url: m.profiles.avatar_url,
+          avg_score: avgScore,
+          quest_count: studentScores.count
+        }
+      }).sort((a, b) => b.avg_score - a.avg_score || b.quest_count - a.quest_count)
+
+      setLeaderboardData(leaderboardWithScores)
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
       setLeaderboardData([])
@@ -582,9 +673,12 @@ function StudentClassChapters() {
               {members.map((member, index) => (
                 <div key={member.student?.id || index} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg shadow-sm font-['Poppins']">
-                      {member.student?.full_name?.charAt(0).toUpperCase() || '?'}
-                    </div>
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={member.student?.avatar_url} alt={member.student?.full_name} />
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white font-semibold text-lg">
+                        {member.student?.full_name?.charAt(0).toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="flex-1">
                       <h4 className="text-base font-semibold text-gray-800 font-['Poppins']">
                         {member.student?.full_name || 'Unknown'}
@@ -592,13 +686,6 @@ function StudentClassChapters() {
                       <p className="text-xs text-gray-500 font-['Poppins']">
                         {member.student?.email}
                       </p>
-                    </div>
-                    <div className="text-xs text-gray-500 font-['Poppins']">
-                      Bergabung {new Date(member.joined_at).toLocaleDateString('id-ID', { 
-                        day: 'numeric', 
-                        month: 'short',
-                        year: 'numeric'
-                      })}
                     </div>
                   </div>
                 </div>
@@ -657,8 +744,12 @@ function StudentClassChapters() {
                       </div>
 
                       {/* Avatar */}
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg shadow-sm">
-                        {student.name?.charAt(0).toUpperCase() || '?'}
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg shadow-sm overflow-hidden">
+                        {student.avatar_url ? (
+                          <img src={student.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          student.name?.charAt(0).toUpperCase() || '?'
+                        )}
                       </div>
 
                       {/* Name */}
@@ -667,14 +758,14 @@ function StudentClassChapters() {
                           {student.name}
                         </h4>
                         <p className="text-xs text-gray-500 font-['Poppins']">
-                          Level {Math.floor(student.xp / 100) + 1}
+                          {student.quest_count || 0} Quest dikerjakan
                         </p>
                       </div>
 
-                      {/* XP */}
-                      <div className="flex items-center gap-1 bg-yellow-400/80 text-yellow-900 px-3 py-1.5 rounded-full font-semibold text-sm shadow-sm">
-                        <span>⚡</span>
-                        <span>{student.xp} XP</span>
+                      {/* Score */}
+                      <div className="flex items-center gap-1 bg-blue-500/80 text-white px-3 py-1.5 rounded-full font-semibold text-sm shadow-sm">
+                        <span>📊</span>
+                        <span>{student.avg_score || 0}%</span>
                       </div>
                     </div>
                   </div>
@@ -744,9 +835,12 @@ function StudentClassChapters() {
               {forumPosts.map((post) => (
                 <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm flex-shrink-0">
-                      {post.author?.full_name?.charAt(0).toUpperCase() || '?'}
-                    </div>
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <AvatarImage src={post.author?.avatar_url} alt={post.author?.full_name} />
+                      <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white font-semibold text-sm">
+                        {post.author?.full_name?.charAt(0).toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="text-sm font-semibold text-gray-800 font-['Poppins']">

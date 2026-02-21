@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
+import { Avatar, AvatarImage, AvatarFallback, AvatarBadge } from '@/components/ui/avatar'
 import toast from 'react-hot-toast'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import logo2 from '../assets/logo/2.png' // Logo putih untuk header
@@ -100,23 +101,29 @@ function StudentDashboard() {
 
   const fetchMotivationalMessage = async () => {
     try {
-      // Try to call the PostgreSQL function to get random message
-      const { data, error } = await supabase.rpc('get_random_motivational_message')
+      // Fetch all active messages
+      const now = new Date().toISOString()
+      const { data: messages } = await supabase
+        .from('motivational_messages')
+        .select('message, display_order, published_at, expires_at')
+        .eq('is_active', true)
+        .order('display_order')
       
-      if (!error && data) {
-        setMotivationalMessage(data)
-      } else {
-        // Fallback: fetch from table directly
-        const { data: messages } = await supabase
-          .from('motivational_messages')
-          .select('message')
-          .eq('is_active', true)
-          .order('display_order')
+      if (messages && messages.length > 0) {
+        // Filter messages by schedule
+        const validMessages = messages.filter(m => {
+          const publishedOk = !m.published_at || new Date(m.published_at) <= new Date()
+          const notExpired = !m.expires_at || new Date(m.expires_at) >= new Date()
+          return publishedOk && notExpired
+        })
         
-        if (messages && messages.length > 0) {
-          // Pick random message from active messages
-          const randomIndex = Math.floor(Math.random() * messages.length)
-          setMotivationalMessage(messages[randomIndex].message)
+        if (validMessages.length > 0) {
+          // Calculate which message to show based on day of year
+          const startOfYear = new Date(new Date().getFullYear(), 0, 0)
+          const diff = new Date() - startOfYear
+          const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24))
+          const messageIndex = dayOfYear % validMessages.length
+          setMotivationalMessage(validMessages[messageIndex].message)
         }
       }
     } catch (error) {
@@ -391,13 +398,13 @@ function StudentDashboard() {
               
               {/* Avatar */}
               <Link to="/student/profile" className="relative">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg ring-2 ring-white/30">
-                  <span className="text-white font-bold text-sm">
+                <Avatar className="h-10 w-10 ring-2 ring-white/30">
+                  <AvatarImage src={profile?.avatar_url} alt={profile?.full_name} />
+                  <AvatarFallback className="bg-gradient-to-br from-orange-400 to-orange-600 text-white font-bold text-sm">
                     {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
-                  </span>
-                </div>
-                {/* Online indicator */}
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                  </AvatarFallback>
+                  <AvatarBadge className="bg-green-400 border-2 border-white" />
+                </Avatar>
               </Link>
             </div>
           </div>
@@ -482,14 +489,14 @@ function StudentDashboard() {
               </button>
               
               {/* Avatar */}
-              <Link to="/student/profile" className="relative">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg ring-2 ring-white/30">
-                  <span className="text-white font-bold text-base">
+              <Link to="/student/profile">
+                <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-lg">
+                  <AvatarImage src={profile?.avatar_url} alt={profile?.full_name} />
+                  <AvatarFallback className="bg-gradient-to-br from-orange-400 to-orange-600 text-white font-bold text-base">
                     {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
-                  </span>
-                </div>
-                {/* Online indicator */}
-                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-white"></div>
+                  </AvatarFallback>
+                  <AvatarBadge className="bg-green-400 border-2 border-white w-3.5 h-3.5" />
+                </Avatar>
               </Link>
             </div>
           </div>

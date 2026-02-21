@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
-import toast from 'react-hot-toast'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { toast } from '@/hooks/use-toast'
+import { Plus, Users, BookOpen, User, Loader2, LogOut, Info } from 'lucide-react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 
 function StudentClasses() {
@@ -12,6 +19,7 @@ function StudentClasses() {
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [classCode, setClassCode] = useState('')
   const [joiningClass, setJoiningClass] = useState(false)
+  const [leaveDialog, setLeaveDialog] = useState({ open: false, classId: null, className: '' })
 
   useEffect(() => {
     fetchMyClasses()
@@ -91,7 +99,7 @@ function StudentClasses() {
       }
     } catch (error) {
       console.error('Error fetching classes:', error)
-      toast.error('Gagal memuat kelas')
+      toast({ title: 'Gagal', description: 'Gagal memuat kelas', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -99,7 +107,7 @@ function StudentClasses() {
 
   const handleJoinClass = async () => {
     if (!classCode.trim()) {
-      toast.error('Masukkan kode kelas')
+      toast({ title: 'Gagal', description: 'Masukkan kode kelas', variant: 'destructive' })
       return
     }
 
@@ -119,19 +127,19 @@ function StudentClasses() {
         
         // Check if it's a permissions/RLS error
         if (classError.code === 'PGRST116' || classError.message.includes('policy')) {
-          toast.error('Tidak dapat mengakses data kelas. Hubungi administrator.')
+          toast({ title: 'Error', description: 'Tidak dapat mengakses data kelas. Hubungi administrator.', variant: 'destructive' })
           console.error('⚠️ RLS Policy Error: Table classes mungkin butuh policy untuk SELECT')
         } else if (classError.code === '42703') {
-          toast.error('Column class_code tidak ditemukan di database')
+          toast({ title: 'Error', description: 'Column class_code tidak ditemukan di database', variant: 'destructive' })
           console.error('⚠️ Schema Error: Column class_code tidak ada di table classes')
         } else {
-          toast.error(`Error: ${classError.message}`)
+          toast({ title: 'Error', description: classError.message, variant: 'destructive' })
         }
         return
       }
 
       if (!classData) {
-        toast.error('Kode kelas tidak ditemukan')
+        toast({ title: 'Gagal', description: 'Kode kelas tidak ditemukan', variant: 'destructive' })
         return
       }
 
@@ -144,7 +152,7 @@ function StudentClasses() {
         .maybeSingle()
 
       if (existingMember) {
-        toast.error('Anda sudah bergabung di kelas ini')
+        toast({ title: 'Info', description: 'Anda sudah bergabung di kelas ini' })
         setShowJoinModal(false)
         setClassCode('')
         return
@@ -162,17 +170,17 @@ function StudentClasses() {
         console.error('Error joining class:', joinError)
         
         if (joinError.code === '42501' || joinError.message.includes('policy')) {
-          toast.error('Tidak dapat bergabung ke kelas. Hubungi administrator.')
+          toast({ title: 'Error', description: 'Tidak dapat bergabung ke kelas. Hubungi administrator.', variant: 'destructive' })
           console.error('⚠️ RLS Policy Error: Table class_members butuh policy untuk INSERT')
         } else if (joinError.code === '23505') {
-          toast.error('Anda sudah bergabung di kelas ini')
+          toast({ title: 'Info', description: 'Anda sudah bergabung di kelas ini' })
         } else {
-          toast.error(`Gagal bergabung: ${joinError.message}`)
+          toast({ title: 'Gagal', description: joinError.message, variant: 'destructive' })
         }
         return
       }
 
-      toast.success(`Berhasil bergabung ke kelas "${classData.class_name}"! 🎉`)
+      toast({ title: 'Berhasil', description: `Bergabung ke kelas "${classData.class_name}"` })
       setShowJoinModal(false)
       setClassCode('')
       
@@ -180,36 +188,33 @@ function StudentClasses() {
       navigate(`/student/class/${classData.id}`)
     } catch (error) {
       console.error('Error joining class:', error)
-      toast.error('Terjadi kesalahan')
+      toast({ title: 'Gagal', description: 'Terjadi kesalahan', variant: 'destructive' })
     } finally {
       setJoiningClass(false)
     }
   }
 
-  const handleLeaveClass = async (classId, className) => {
-    if (!confirm(`Apakah Anda yakin ingin keluar dari kelas "${className}"?`)) {
-      return
-    }
-
+  const handleLeaveClass = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
 
       const { error } = await supabase
         .from('class_members')
         .delete()
-        .eq('class_id', classId)
+        .eq('class_id', leaveDialog.classId)
         .eq('student_id', user.id)
 
       if (error) {
-        toast.error('Gagal keluar dari kelas')
+        toast({ title: 'Gagal', description: 'Gagal keluar dari kelas', variant: 'destructive' })
         return
       }
 
-      toast.success('Berhasil keluar dari kelas')
+      toast({ title: 'Berhasil', description: 'Berhasil keluar dari kelas' })
+      setLeaveDialog({ open: false, classId: null, className: '' })
       fetchMyClasses()
     } catch (error) {
       console.error('Error leaving class:', error)
-      toast.error('Terjadi kesalahan')
+      toast({ title: 'Gagal', description: 'Terjadi kesalahan', variant: 'destructive' })
     }
   }
 
@@ -217,16 +222,7 @@ function StudentClasses() {
     return (
       <StudentLayout showHeader={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="w-32 h-32 mx-auto mb-4">
-              <DotLottieReact
-                src="https://lottie.host/a97ee9dd-77be-40cd-b148-8577e6cd6356/P6C2DoJ7EW.lottie"
-                loop
-                autoplay
-              />
-            </div>
-            <p className="text-gray-500">Memuat kelas...</p>
-          </div>
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         </div>
       </StudentLayout>
     )
@@ -234,174 +230,154 @@ function StudentClasses() {
 
   return (
     <StudentLayout>
-      {/* Simple Header */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-semibold text-gray-800 font-['Poppins']">Daftar Kelas Saya</h1>
-        <button
-          onClick={() => setShowJoinModal(true)}
-          className="bg-[#1E258F] hover:bg-[#161c6e] text-white rounded-lg px-4 py-2 flex items-center gap-2 transition-all duration-200 font-['Poppins']"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          <span className="font-medium text-sm">Gabung Kelas</span>
-        </button>
+        <h1 className="text-lg font-semibold text-gray-800">Daftar Kelas Saya</h1>
+        <Button onClick={() => setShowJoinModal(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Gabung Kelas
+        </Button>
       </div>
 
       {/* Main Content */}
-      <div className="space-y-4">
+      <div className="space-y-4 pb-6">
         {myClasses.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
-            <div className="w-64 h-64 mx-auto mb-4">
-              <DotLottieReact
-                src="https://lottie.host/408beb9d-77b8-4033-bdbe-0d29b68cc833/vzZ2BVnm49.lottie"
-                loop
-                autoplay
-              />
-            </div>
-            <h3 className="text-base font-semibold text-gray-800 mb-2 font-['Poppins']">Belum Ada Kelas</h3>
-            <p className="text-sm text-gray-500 font-['Poppins']">
-              Klik tombol "Gabung Kelas" untuk bergabung dengan kelas menggunakan kode dari guru Anda
-            </p>
-          </div>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-8 text-center">
+              <div className="w-48 h-48 mx-auto mb-4">
+                <DotLottieReact
+                  src="https://lottie.host/408beb9d-77b8-4033-bdbe-0d29b68cc833/vzZ2BVnm49.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
+              <h3 className="text-base font-semibold text-gray-800 mb-2">Belum Ada Kelas</h3>
+              <p className="text-sm text-gray-500">
+                Klik tombol "Gabung Kelas" untuk bergabung dengan kelas menggunakan kode dari guru Anda
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-3">
             {myClasses.map((classItem) => (
-              <div 
-                key={classItem.id}
-                className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-5 transition-all duration-200"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-3 font-['Poppins']">{classItem.class_name}</h3>
-                    
-                      <div className="flex items-center gap-4 text-xs text-gray-500 mb-3 font-['Poppins']">
+              <Card key={classItem.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-3">{classItem.class_name}</h3>
+                      
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mb-3">
                         <span className="flex items-center gap-1.5">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
+                          <User className="h-4 w-4" />
                           <span className="text-gray-600">{classItem.teacher?.full_name || 'Guru'}</span>
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
+                          <Users className="h-4 w-4" />
                           <span className="text-gray-600">{classItem.studentCount} siswa</span>
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                          </svg>
+                          <BookOpen className="h-4 w-4" />
                           <span className="text-gray-600">{classItem.chapterCount} pelajaran</span>
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full text-xs font-medium font-['Poppins'] border border-blue-100">
-                          Kode: {classItem.class_code}
-                        </span>
-                      </div>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+                        Kode: {classItem.class_code}
+                      </Badge>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => navigate(`/student/class/${classItem.id}`)}
+                        className="flex-1 sm:flex-none"
+                      >
+                        Lihat Pelajaran
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setLeaveDialog({ open: true, classId: classItem.id, className: classItem.class_name })}
+                        className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <LogOut className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="flex gap-2.5">
-                    <button
-                      onClick={() => navigate(`/student/class/${classItem.id}`)}
-                      className="flex-1 bg-[#1E258F] hover:bg-[#161F6F] text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors font-['Poppins']"
-                    >
-                      Lihat Pelajaran
-                    </button>
-                    <button
-                      onClick={() => handleLeaveClass(classItem.id, classItem.class_name)}
-                      className="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors border border-red-100 font-['Poppins']"
-                    >
-                      Keluar
-                    </button>
-                  </div>
-                </div>
-              ))}
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Join Class Modal */}
-      {showJoinModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-100">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-xl font-semibold text-gray-800 font-['Poppins']">Gabung Kelas Baru</h3>
-              <button
-                onClick={() => {
-                  setShowJoinModal(false)
-                  setClassCode('')
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      {/* Join Class Dialog */}
+      <Dialog open={showJoinModal} onOpenChange={setShowJoinModal}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>Gabung Kelas Baru</DialogTitle>
+            <DialogDescription>
+              Masukkan kode kelas yang diberikan oleh guru Anda
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-lg">
+              <div className="flex items-start gap-2">
+                <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-blue-700">
+                  Tanyakan kode kelas ke guru Anda untuk bergabung
+                </p>
+              </div>
             </div>
 
-            <div className="mb-5">
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 rounded-r-lg">
-                <div className="flex items-start">
-                  <svg className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-sm text-blue-700 font-['Poppins']">
-                    Masukkan kode kelas yang diberikan oleh guru Anda untuk bergabung ke kelas
-                  </p>
-                </div>
-              </div>
-
-              <label className="block text-sm font-medium text-gray-700 mb-2 font-['Poppins']">
-                Kode Kelas
-              </label>
-              <input
-                type="text"
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Kode Kelas</label>
+              <Input
                 value={classCode}
                 onChange={(e) => setClassCode(e.target.value.toUpperCase())}
                 placeholder="Contoh: ABC123XYZ"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg font-medium tracking-wider uppercase font-['Poppins'] transition-all"
+                className="text-center text-lg font-medium tracking-wider uppercase"
                 maxLength={20}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleJoinClass()
-                  }
-                }}
+                onKeyPress={(e) => e.key === 'Enter' && handleJoinClass()}
               />
             </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowJoinModal(false)
-                  setClassCode('')
-                }}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-lg transition-colors font-['Poppins']"
-                disabled={joiningClass}
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleJoinClass}
-                disabled={joiningClass || !classCode.trim()}
-                className="flex-1 bg-blue-800 hover:bg-blue-900 text-white font-medium py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-['Poppins']"
-              >
-                {joiningClass ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Bergabung...
-                  </span>
-                ) : (
-                  'Gabung'
-                )}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => { setShowJoinModal(false); setClassCode('') }}
+              disabled={joiningClass}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleJoinClass}
+              disabled={joiningClass || !classCode.trim()}
+            >
+              {joiningClass ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              {joiningClass ? 'Bergabung...' : 'Gabung'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave Class AlertDialog */}
+      <AlertDialog open={leaveDialog.open} onOpenChange={(open) => setLeaveDialog({ ...leaveDialog, open })}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Keluar dari Kelas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin keluar dari kelas "{leaveDialog.className}"? Progress Anda di kelas ini akan tetap tersimpan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLeaveClass} className="!bg-red-600 hover:!bg-red-700">
+              Keluar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </StudentLayout>
   )
 }

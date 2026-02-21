@@ -1,6 +1,24 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.activity_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  user_email text,
+  user_name text,
+  user_role text,
+  action text NOT NULL,
+  action_type text NOT NULL DEFAULT 'info'::text,
+  resource_type text,
+  resource_id text,
+  resource_name text,
+  details jsonb DEFAULT '{}'::jsonb,
+  ip_address text,
+  user_agent text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT activity_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT activity_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.announcements (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   title text NOT NULL,
@@ -104,6 +122,17 @@ CREATE TABLE public.class_chapters (
   CONSTRAINT class_chapters_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id),
   CONSTRAINT class_chapters_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.class_forum_posts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  class_id integer NOT NULL,
+  user_id uuid NOT NULL,
+  content text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT class_forum_posts_pkey PRIMARY KEY (id),
+  CONSTRAINT class_forum_posts_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT class_forum_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.class_materials (
   id integer NOT NULL DEFAULT nextval('class_materials_id_seq'::regclass),
   class_id integer,
@@ -122,6 +151,7 @@ CREATE TABLE public.class_materials (
 CREATE TABLE public.class_members (
   class_id integer NOT NULL,
   student_id uuid NOT NULL,
+  joined_at timestamp with time zone DEFAULT now(),
   CONSTRAINT class_members_pkey PRIMARY KEY (class_id, student_id),
   CONSTRAINT class_members_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
   CONSTRAINT class_members_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.profiles(id)
@@ -134,6 +164,35 @@ CREATE TABLE public.classes (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT classes_pkey PRIMARY KEY (id),
   CONSTRAINT classes_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.leaderboard_badges (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  leaderboard_setting_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  class_id integer,
+  rank integer NOT NULL CHECK (rank >= 1 AND rank <= 3),
+  badge_type text NOT NULL CHECK (badge_type = ANY (ARRAY['gold'::text, 'silver'::text, 'bronze'::text])),
+  xp_at_end integer DEFAULT 0,
+  awarded_at timestamp with time zone DEFAULT now(),
+  period_name text,
+  CONSTRAINT leaderboard_badges_pkey PRIMARY KEY (id),
+  CONSTRAINT leaderboard_badges_setting_fkey FOREIGN KEY (leaderboard_setting_id) REFERENCES public.leaderboard_settings(id),
+  CONSTRAINT leaderboard_badges_student_fkey FOREIGN KEY (student_id) REFERENCES public.profiles(id),
+  CONSTRAINT leaderboard_badges_class_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id)
+);
+CREATE TABLE public.leaderboard_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  class_id integer,
+  teacher_id uuid NOT NULL,
+  period_name text NOT NULL DEFAULT 'Periode 1'::text,
+  start_date timestamp with time zone NOT NULL DEFAULT now(),
+  end_date timestamp with time zone NOT NULL,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT leaderboard_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT leaderboard_settings_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT leaderboard_settings_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.lesson_materials (
   id integer NOT NULL DEFAULT nextval('lesson_materials_id_seq'::regclass),
@@ -180,6 +239,8 @@ CREATE TABLE public.motivational_messages (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   created_by uuid,
+  published_at timestamp with time zone,
+  expires_at timestamp with time zone,
   CONSTRAINT motivational_messages_pkey PRIMARY KEY (id),
   CONSTRAINT motivational_messages_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
 );
@@ -316,6 +377,37 @@ CREATE TABLE public.saved_reports (
   CONSTRAINT saved_reports_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
   CONSTRAINT saved_reports_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id),
   CONSTRAINT saved_reports_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES public.lessons(id)
+);
+CREATE TABLE public.store_products (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  teacher_id uuid NOT NULL,
+  class_id integer,
+  product_name text NOT NULL,
+  description text,
+  coin_price integer NOT NULL DEFAULT 0,
+  image_url text,
+  stock integer DEFAULT '-1'::integer,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT store_products_pkey PRIMARY KEY (id),
+  CONSTRAINT store_products_teacher_fkey FOREIGN KEY (teacher_id) REFERENCES public.profiles(id),
+  CONSTRAINT store_products_class_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id)
+);
+CREATE TABLE public.store_purchases (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  student_id uuid NOT NULL,
+  product_id uuid NOT NULL,
+  coins_spent integer NOT NULL,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'completed'::text])),
+  purchased_at timestamp with time zone DEFAULT now(),
+  processed_at timestamp with time zone,
+  processed_by uuid,
+  notes text,
+  CONSTRAINT store_purchases_pkey PRIMARY KEY (id),
+  CONSTRAINT store_purchases_student_fkey FOREIGN KEY (student_id) REFERENCES public.profiles(id),
+  CONSTRAINT store_purchases_product_fkey FOREIGN KEY (product_id) REFERENCES public.store_products(id),
+  CONSTRAINT store_purchases_processed_by_fkey FOREIGN KEY (processed_by) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.student_answers (
   id bigint NOT NULL DEFAULT nextval('student_answers_id_seq'::regclass),

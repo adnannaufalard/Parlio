@@ -137,7 +137,7 @@ function TeacherDashboard() {
       const { count: questCount } = await supabase
         .from('quests')
         .select('*', { count: 'exact', head: true })
-        .eq('teacher_id', user.id)
+        .eq('created_by', user.id)
 
       setStats({
         totalClasses: classes?.length || 0,
@@ -157,7 +157,7 @@ function TeacherDashboard() {
       if (classIds.length > 0) {
         const { data: questAttempts } = await supabase
           .from('student_quest_attempts')
-          .select('id, score, is_passed, completed_at, student_id, quest_id')
+          .select('id, score, passed, completed_at, student_id, quest_id')
           .not('completed_at', 'is', null)
           .order('completed_at', { ascending: false })
           .limit(20)
@@ -175,24 +175,30 @@ function TeacherDashboard() {
           const questIds = [...new Set(questAttempts.map(a => a.quest_id))]
           const { data: questsData } = await supabase
             .from('quests')
-            .select('id, title, class_id')
+            .select('id, title, lesson_id, lessons(chapter_id, chapters(class_chapters(class_id)))')
             .in('id', questIds)
-          const questMap = Object.fromEntries((questsData || []).map(q => [q.id, q]))
+          
+          // Map quest to class_id
+          const questMap = Object.fromEntries((questsData || []).map(q => {
+            const classChapters = q.lessons?.chapters?.class_chapters || []
+            const firstClassChapter = classChapters[0]
+            return [q.id, { ...q, class_id: firstClassChapter?.class_id }]
+          }))
 
           questAttempts.forEach(attempt => {
             const quest = questMap[attempt.quest_id]
             const studentName = studentMap[attempt.student_id]
-            if (quest && studentName && classIds.includes(quest.class_id)) {
+            if (quest && studentName && quest.class_id && classIds.includes(quest.class_id)) {
               allActivities.push({
                 id: `quest_${attempt.id}`,
                 type: 'quest_completed',
                 title: `${studentName} menyelesaikan quest "${quest.title}"`,
-                subtitle: attempt.is_passed 
+                subtitle: attempt.passed 
                   ? `✅ Lulus dengan skor ${attempt.score}%` 
                   : `❌ Belum lulus (${attempt.score}%)`,
                 time: attempt.completed_at,
                 icon: 'quest',
-                color: attempt.is_passed ? 'emerald' : 'amber'
+                color: attempt.passed ? 'emerald' : 'amber'
               })
             }
           })
@@ -233,40 +239,9 @@ function TeacherDashboard() {
         })
       }
 
-      // 3. New class members (siswa bergabung ke kelas)
-      if (classIds.length > 0) {
-        const { data: newMembers } = await supabase
-          .from('class_members')
-          .select('id, joined_at, student_id, class_id')
-          .in('class_id', classIds)
-          .order('joined_at', { ascending: false })
-          .limit(10)
-
-        if (newMembers && newMembers.length > 0) {
-          const studentIds = [...new Set(newMembers.map(m => m.student_id))]
-          const { data: studentsData } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', studentIds)
-          const studentMap = Object.fromEntries((studentsData || []).map(s => [s.id, s.full_name]))
-
-          newMembers.forEach(member => {
-            const studentName = studentMap[member.student_id]
-            const className = classMap[member.class_id]
-            if (studentName && className) {
-              allActivities.push({
-                id: `member_${member.id}`,
-                type: 'student_joined',
-                title: `${studentName} bergabung ke kelas`,
-                subtitle: `📚 ${className}`,
-                time: member.joined_at,
-                icon: 'user',
-                color: 'blue'
-              })
-            }
-          })
-        }
-      }
+      // 3. New class members - Skip this section for now since class_members doesn't have joined_at
+      // The table only has class_id and student_id without timestamps
+      // TODO: Add joined_at column to class_members table if needed
 
       // 4. Classes created
       ;(classes || []).forEach(classItem => {
@@ -285,20 +260,21 @@ function TeacherDashboard() {
       if (classIds.length > 0) {
         const { data: chapters } = await supabase
           .from('class_chapters')
-          .select('id, title, created_at, class_id')
+          .select('id, assigned_at, class_id, chapters(id, title)')
           .in('class_id', classIds)
-          .order('created_at', { ascending: false })
+          .order('assigned_at', { ascending: false })
           .limit(10)
 
         ;(chapters || []).forEach(chapter => {
           const className = classMap[chapter.class_id]
+          const chapterTitle = chapter.chapters?.title || 'Chapter'
           if (className) {
             allActivities.push({
               id: `chapter_${chapter.id}`,
               type: 'chapter_created',
-              title: `Chapter "${chapter.title}" ditambahkan`,
+              title: `Chapter "${chapterTitle}" ditambahkan`,
               subtitle: `📖 ${className}`,
-              time: chapter.created_at,
+              time: chapter.assigned_at,
               icon: 'chapter',
               color: 'amber'
             })
@@ -309,24 +285,23 @@ function TeacherDashboard() {
       // 6. Quests created
       const { data: quests } = await supabase
         .from('quests')
-        .select('id, title, created_at, class_id')
-        .eq('teacher_id', user.id)
+        .select('id, title, created_at, lesson_id, lessons(id, chapter_id, chapters(id, class_chapters(class_id)))')
+        .eq('created_by', user.id)
         .order('created_at', { ascending: false })
         .limit(10)
 
       ;(quests || []).forEach(quest => {
-        const className = classMap[quest.class_id]
-        if (className) {
-          allActivities.push({
-            id: `quest_created_${quest.id}`,
-            type: 'quest_created',
-            title: `Quest "${quest.title}" dibuat`,
-            subtitle: `🎮 ${className}`,
-            time: quest.created_at,
-            icon: 'quest',
-            color: 'purple'
-          })
-        }
+        const questClassId = quest.lessons?.chapters?.class_chapters?.[0]?.class_id
+        const className = questClassId ? classMap[questClassId] : null
+        allActivities.push({
+          id: `quest_created_${quest.id}`,
+          type: 'quest_created',
+          title: `Quest "${quest.title}" dibuat`,
+          subtitle: className ? `🎮 ${className}` : '🎮 Quest',
+          time: quest.created_at,
+          icon: 'quest',
+          color: 'purple'
+        })
       })
 
       // Sort all activities by time and take top 15

@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { MessageSquare, Send, Users, Trophy, BookOpen, Megaphone } from 'lucide-react'
 
 const TeacherClassDetail = () => {
   const { id } = useParams()
@@ -15,12 +18,18 @@ const TeacherClassDetail = () => {
   const [chapters, setChapters] = useState([])
   const [announcements, setAnnouncements] = useState([])
   const [leaderboard, setLeaderboard] = useState([])
+  const [forumPosts, setForumPosts] = useState([])
+  const [newComment, setNewComment] = useState('')
+  const [postingComment, setPostingComment] = useState(false)
+  const forumChannelRef = useRef(null)
   
   // Modals
   const [showAddStudentModal, setShowAddStudentModal] = useState(false)
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null)
   const [showAssignChapterModal, setShowAssignChapterModal] = useState(false)
   const [studentToRemove, setStudentToRemove] = useState(null)
+  const [announcementToDelete, setAnnouncementToDelete] = useState(null)
 
   useEffect(() => {
     fetchClassData()
@@ -31,6 +40,15 @@ const TeacherClassDetail = () => {
   useEffect(() => {
     if (activeTab === 'announcements') fetchAnnouncements()
     if (activeTab === 'leaderboard') fetchLeaderboard()
+    if (activeTab === 'forum') {
+      fetchForumPosts()
+      setupForumRealtime()
+    }
+    return () => {
+      if (forumChannelRef.current) {
+        supabase.removeChannel(forumChannelRef.current)
+      }
+    }
   }, [activeTab])
 
   const fetchClassData = async () => {
@@ -68,6 +86,7 @@ const TeacherClassDetail = () => {
             id,
             full_name,
             email,
+            avatar_url,
             xp_points,
             coins
           )
@@ -138,35 +157,207 @@ const TeacherClassDetail = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      // Fetch students with XP and coins for leaderboard
-      const { data, error } = await supabase
+      // Get class members first
+      const { data: membersData, error: membersError } = await supabase
         .from('class_members')
         .select(`
           student_id,
-          joined_at,
           student:profiles!class_members_student_id_fkey (
             id,
             full_name,
             avatar_url,
-            xp_points,
             coins
           )
         `)
         .eq('class_id', id)
 
-      if (error) throw error
+      if (membersError || !membersData || membersData.length === 0) {
+        setLeaderboard([])
+        return
+      }
 
-      // Sort by XP points descending
-      const sortedLeaderboard = (data || [])
-        .map(item => ({
-          ...item.student,
-          joined_at: item.joined_at
-        }))
-        .sort((a, b) => (b.xp_points || 0) - (a.xp_points || 0))
+      // Get chapters assigned to this class
+      const { data: classChapters } = await supabase
+        .from('class_chapters')
+        .select('chapter_id')
+        .eq('class_id', id)
+        .eq('is_active', true)
 
-      setLeaderboard(sortedLeaderboard)
+      if (!classChapters || classChapters.length === 0) {
+        // No chapters, show members with 0 score
+        const sorted = membersData.map(m => ({
+          id: m.student.id,
+          full_name: m.student.full_name,
+          avatar_url: m.student.avatar_url,
+          coins: m.student.coins || 0,
+          total_score: 0,
+          avg_score: 0,
+          quest_count: 0
+        })).sort((a, b) => a.full_name.localeCompare(b.full_name))
+        setLeaderboard(sorted)
+        return
+      }
+
+      const chapterIds = classChapters.map(c => c.chapter_id)
+
+      // Get lessons in those chapters
+      const { data: lessons } = await supabase
+        .from('lessons')
+        .select('id')
+        .in('chapter_id', chapterIds)
+
+      if (!lessons || lessons.length === 0) {
+        const sorted = membersData.map(m => ({
+          id: m.student.id,
+          full_name: m.student.full_name,
+          avatar_url: m.student.avatar_url,
+          coins: m.student.coins || 0,
+          total_score: 0,
+          avg_score: 0,
+          quest_count: 0
+        })).sort((a, b) => a.full_name.localeCompare(b.full_name))
+        setLeaderboard(sorted)
+        return
+      }
+
+      const lessonIds = lessons.map(l => l.id)
+
+      // Get quests in those lessons
+      const { data: quests } = await supabase
+        .from('quests')
+        .select('id')
+        .in('lesson_id', lessonIds)
+
+      if (!quests || quests.length === 0) {
+        const sorted = membersData.map(m => ({
+          id: m.student.id,
+          full_name: m.student.full_name,
+          avatar_url: m.student.avatar_url,
+          coins: m.student.coins || 0,
+          total_score: 0,
+          avg_score: 0,
+          quest_count: 0
+        })).sort((a, b) => a.full_name.localeCompare(b.full_name))
+        setLeaderboard(sorted)
+        return
+      }
+
+      const questIds = quests.map(q => q.id)
+      const studentIds = membersData.map(m => m.student_id)
+
+      // Get scores from quest attempts for these quests by class members
+      const { data: attempts } = await supabase
+        .from('student_quest_attempts')
+        .select('student_id, score, max_score')
+        .in('quest_id', questIds)
+        .in('student_id', studentIds)
+
+      // Calculate total score and average score per student
+      const scoresByStudent = {}
+      ;(attempts || []).forEach(a => {
+        if (!scoresByStudent[a.student_id]) {
+          scoresByStudent[a.student_id] = { total: 0, max: 0, count: 0 }
+        }
+        scoresByStudent[a.student_id].total += a.score || 0
+        scoresByStudent[a.student_id].max += a.max_score || 0
+        scoresByStudent[a.student_id].count += 1
+      })
+
+      // Build leaderboard with scores (nilai)
+      const leaderboardWithScores = membersData.map(m => {
+        const studentScores = scoresByStudent[m.student_id] || { total: 0, max: 0, count: 0 }
+        const avgScore = studentScores.max > 0 
+          ? Math.round((studentScores.total / studentScores.max) * 100) 
+          : 0
+        return {
+          id: m.student.id,
+          full_name: m.student.full_name,
+          avatar_url: m.student.avatar_url,
+          coins: m.student.coins || 0,
+          total_score: studentScores.total,
+          avg_score: avgScore,
+          quest_count: studentScores.count
+        }
+      }).sort((a, b) => b.avg_score - a.avg_score || b.total_score - a.total_score)
+
+      setLeaderboard(leaderboardWithScores)
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
+    }
+  }
+
+  const fetchForumPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('class_forum_posts')
+        .select(`
+          *,
+          author:profiles!class_forum_posts_user_id_fkey(id, full_name, avatar_url)
+        `)
+        .eq('class_id', id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching forum posts:', error)
+        setForumPosts([])
+      } else {
+        setForumPosts(data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching forum posts:', error)
+      setForumPosts([])
+    }
+  }
+
+  const setupForumRealtime = () => {
+    if (forumChannelRef.current) {
+      supabase.removeChannel(forumChannelRef.current)
+    }
+
+    const channel = supabase
+      .channel(`forum-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'class_forum_posts',
+          filter: `class_id=eq.${id}`
+        },
+        () => {
+          fetchForumPosts()
+        }
+      )
+      .subscribe()
+
+    forumChannelRef.current = channel
+  }
+
+  const handlePostComment = async () => {
+    if (!newComment.trim()) return
+
+    setPostingComment(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      const { error } = await supabase
+        .from('class_forum_posts')
+        .insert([{
+          class_id: id,
+          user_id: user.id,
+          content: newComment.trim()
+        }])
+
+      if (error) throw error
+
+      toast.success('Komentar berhasil diposting')
+      setNewComment('')
+      fetchForumPosts()
+    } catch (error) {
+      console.error('Error posting comment:', error)
+      toast.error('Gagal memposting komentar')
+    } finally {
+      setPostingComment(false)
     }
   }
 
@@ -281,21 +472,22 @@ const TeacherClassDetail = () => {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
               {[
-                { key: 'chapters', label: 'Pelajaran', icon: '' },
-                { key: 'announcements', label: 'Pengumuman', icon: '' },
-                { key: 'leaderboard', label: 'Leaderboard', icon: '' },
-                { key: 'students', label: 'Siswa', icon: '' }
+                { key: 'chapters', label: 'Pelajaran', icon: <BookOpen className="h-4 w-4" /> },
+                { key: 'announcements', label: 'Pengumuman', icon: <Megaphone className="h-4 w-4" /> },
+                { key: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="h-4 w-4" /> },
+                { key: 'students', label: 'Siswa', icon: <Users className="h-4 w-4" /> },
+                { key: 'forum', label: 'Forum', icon: <MessageSquare className="h-4 w-4" /> }
               ].map(tab => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                     activeTab === tab.key
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <span className="mr-2">{tab.icon}</span>
+                  {tab.icon}
                   {tab.label}
                 </button>
               ))}
@@ -446,36 +638,45 @@ const TeacherClassDetail = () => {
                     
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {students.map((item) => (
-                          <tr key={item.student_id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-black">{item.student.full_name}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.student.email}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <button
-                                onClick={() => setStudentToRemove(item.student)}
-                                className="text-red-600 hover:text-red-800 font-medium"
-                              >
-                                Hapus
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {students.map((item) => (
+                      <div key={item.student_id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={item.student.avatar_url} alt={item.student.full_name} />
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">
+                              {item.student.full_name?.charAt(0).toUpperCase() || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold text-gray-800 truncate">{item.student.full_name}</h4>
+                              <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                Aktif
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-500 truncate">{item.student.email}</p>
+                            <div className="flex items-center gap-3 mt-2">
+                              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                                ⭐ {item.student.xp_points || 0} XP
+                              </span>
+                              <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
+                                🪙 {item.student.coins || 0}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setStudentToRemove(item.student)}
+                            className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+                            title="Hapus siswa"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -533,6 +734,29 @@ const TeacherClassDetail = () => {
                               })}
                             </div>
                           </div>
+                          <div className="flex gap-2 ml-4">
+                            <button
+                              onClick={() => {
+                                setEditingAnnouncement(announcement)
+                                setShowAnnouncementModal(true)
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                              title="Edit"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setAnnouncementToDelete(announcement)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded"
+                              title="Hapus"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -581,7 +805,7 @@ const TeacherClassDetail = () => {
                           </div>
                           <div className="text-2xl">🥈</div>
                           <p className="font-semibold text-gray-800 text-sm truncate max-w-[100px]">{leaderboard[1]?.full_name}</p>
-                          <p className="text-xs text-blue-600 font-bold">{leaderboard[1]?.xp_points || 0} XP</p>
+                          <p className="text-xs text-blue-600 font-bold">{leaderboard[1]?.avg_score || 0}%</p>
                         </div>
                         
                         {/* 1st Place */}
@@ -595,7 +819,7 @@ const TeacherClassDetail = () => {
                           </div>
                           <div className="text-3xl">🥇</div>
                           <p className="font-bold text-gray-800 truncate max-w-[120px]">{leaderboard[0]?.full_name}</p>
-                          <p className="text-sm text-blue-600 font-bold">{leaderboard[0]?.xp_points || 0} XP</p>
+                          <p className="text-sm text-blue-600 font-bold">{leaderboard[0]?.avg_score || 0}%</p>
                         </div>
                         
                         {/* 3rd Place */}
@@ -609,7 +833,7 @@ const TeacherClassDetail = () => {
                           </div>
                           <div className="text-2xl">🥉</div>
                           <p className="font-semibold text-gray-800 text-sm truncate max-w-[100px]">{leaderboard[2]?.full_name}</p>
-                          <p className="text-xs text-blue-600 font-bold">{leaderboard[2]?.xp_points || 0} XP</p>
+                          <p className="text-xs text-blue-600 font-bold">{leaderboard[2]?.avg_score || 0}%</p>
                         </div>
                       </div>
                     )}
@@ -621,8 +845,8 @@ const TeacherClassDetail = () => {
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Siswa</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">XP Points</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coins</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rata-rata Nilai</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quest</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -652,12 +876,12 @@ const TeacherClassDetail = () => {
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
-                                  ⭐ {student.xp_points || 0}
+                                  📊 {student.avg_score || 0}%
                                 </span>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
-                                <span className="px-3 py-1 text-sm font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                  🪙 {student.coins || 0}
+                                <span className="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
+                                  {student.quest_count || 0} Quest
                                 </span>
                               </td>
                             </tr>
@@ -665,6 +889,99 @@ const TeacherClassDetail = () => {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Forum Tab */}
+            {activeTab === 'forum' && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Forum Diskusi Kelas
+                  </h2>
+                </div>
+
+                {/* Post Comment Form */}
+                <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Tulis komentar atau pertanyaan untuk siswa..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white text-gray-900"
+                    rows={3}
+                  />
+                  <div className="flex justify-end mt-3">
+                    <button
+                      onClick={handlePostComment}
+                      disabled={postingComment || !newComment.trim()}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm flex items-center gap-2"
+                    >
+                      {postingComment ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Posting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4" />
+                          <span>Kirim</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                
+                {forumPosts.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <div className="w-32 h-32 mx-auto mb-4">
+                      <DotLottieReact
+                        src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                        loop
+                        autoplay
+                      />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Belum Ada Diskusi</h3>
+                    <p className="text-sm text-gray-600">
+                      Mulai diskusi dengan menulis komentar pertama!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {forumPosts.map((post) => (
+                      <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={post.author?.avatar_url} alt={post.author?.full_name} />
+                            <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white font-semibold text-sm">
+                              {post.author?.full_name?.charAt(0).toUpperCase() || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="text-sm font-semibold text-gray-800">
+                                {post.author?.full_name || 'Anonymous'}
+                              </h4>
+                              <span className="text-xs text-gray-400">•</span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(post.created_at).toLocaleDateString('id-ID', { 
+                                  day: 'numeric', 
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                              {post.content}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -701,12 +1018,58 @@ const TeacherClassDetail = () => {
       {showAnnouncementModal && (
         <AnnouncementModal
           classId={id}
-          onClose={() => setShowAnnouncementModal(false)}
+          announcement={editingAnnouncement}
+          onClose={() => {
+            setShowAnnouncementModal(false)
+            setEditingAnnouncement(null)
+          }}
           onSuccess={() => {
             fetchAnnouncements()
             setShowAnnouncementModal(false)
+            setEditingAnnouncement(null)
           }}
         />
+      )}
+
+      {/* Delete Announcement Confirmation */}
+      {announcementToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Konfirmasi Hapus Pengumuman</h3>
+            <p className="text-gray-600 mb-6">
+              Apakah Anda yakin ingin menghapus pengumuman <strong>"{announcementToDelete.title}"</strong>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setAnnouncementToDelete(null)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase
+                      .from('class_announcements')
+                      .delete()
+                      .eq('id', announcementToDelete.id)
+                    if (error) throw error
+                    toast.success('Pengumuman berhasil dihapus')
+                    fetchAnnouncements()
+                  } catch (error) {
+                    console.error('Error deleting announcement:', error)
+                    toast.error('Gagal menghapus pengumuman')
+                  } finally {
+                    setAnnouncementToDelete(null)
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Remove Student Confirmation */}
@@ -1038,11 +1401,12 @@ const AddStudentModal = ({ classId, onClose, onSuccess }) => {
 }
 
 // Announcement Modal Component
-const AnnouncementModal = ({ classId, onClose, onSuccess }) => {
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [isPinned, setIsPinned] = useState(false)
+const AnnouncementModal = ({ classId, announcement, onClose, onSuccess }) => {
+  const [title, setTitle] = useState(announcement?.title || '')
+  const [content, setContent] = useState(announcement?.content || '')
+  const [isPinned, setIsPinned] = useState(announcement?.is_pinned || false)
   const [loading, setLoading] = useState(false)
+  const isEditing = !!announcement
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -1055,23 +1419,38 @@ const AnnouncementModal = ({ classId, onClose, onSuccess }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      const { error } = await supabase
-        .from('class_announcements')
-        .insert([{
-          class_id: classId,
-          teacher_id: user.id,
-          title: title.trim(),
-          content: content.trim(),
-          is_pinned: isPinned
-        }])
+      if (isEditing) {
+        const { error } = await supabase
+          .from('class_announcements')
+          .update({
+            title: title.trim(),
+            content: content.trim(),
+            is_pinned: isPinned,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', announcement.id)
 
-      if (error) throw error
+        if (error) throw error
+        toast.success('Pengumuman berhasil diperbarui')
+      } else {
+        const { error } = await supabase
+          .from('class_announcements')
+          .insert([{
+            class_id: classId,
+            teacher_id: user.id,
+            title: title.trim(),
+            content: content.trim(),
+            is_pinned: isPinned
+          }])
 
-      toast.success('Pengumuman berhasil dibuat')
+        if (error) throw error
+        toast.success('Pengumuman berhasil dibuat')
+      }
+      
       onSuccess()
     } catch (error) {
-      console.error('Error creating announcement:', error)
-      toast.error('Gagal membuat pengumuman')
+      console.error('Error saving announcement:', error)
+      toast.error(isEditing ? 'Gagal memperbarui pengumuman' : 'Gagal membuat pengumuman')
     } finally {
       setLoading(false)
     }
@@ -1080,7 +1459,9 @@ const AnnouncementModal = ({ classId, onClose, onSuccess }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Buat Pengumuman Baru</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          {isEditing ? 'Edit Pengumuman' : 'Buat Pengumuman Baru'}
+        </h3>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -1137,7 +1518,7 @@ const AnnouncementModal = ({ classId, onClose, onSuccess }) => {
               disabled={loading}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
             >
-              {loading ? 'Menyimpan...' : 'Buat Pengumuman'}
+              {loading ? 'Menyimpan...' : isEditing ? 'Simpan Perubahan' : 'Buat Pengumuman'}
             </button>
           </div>
         </form>
