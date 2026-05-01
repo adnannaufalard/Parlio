@@ -409,6 +409,18 @@ CREATE TABLE public.store_purchases (
   CONSTRAINT store_purchases_product_fkey FOREIGN KEY (product_id) REFERENCES public.store_products(id),
   CONSTRAINT store_purchases_processed_by_fkey FOREIGN KEY (processed_by) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.student_achievement_badges (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  student_id uuid NOT NULL,
+  chapter_id bigint NOT NULL,
+  badge_type character varying NOT NULL DEFAULT 'chapter_completion'::character varying,
+  badge_level integer NOT NULL CHECK (badge_level >= 1 AND badge_level <= 5),
+  awarded_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT student_achievement_badges_pkey PRIMARY KEY (id),
+  CONSTRAINT student_achievement_badges_student_id_fkey FOREIGN KEY (student_id) REFERENCES auth.users(id),
+  CONSTRAINT student_achievement_badges_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id)
+);
 CREATE TABLE public.student_answers (
   id bigint NOT NULL DEFAULT nextval('student_answers_id_seq'::regclass),
   student_id uuid,

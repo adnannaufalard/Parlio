@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import MediaGallery, { mergeLegacyMedia, OptionMedia } from '../components/MediaGallery'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
@@ -49,24 +50,29 @@ function StudentQuestDetail() {
 
       const { data: questData } = await supabase
         .from('quests')
-        .select('max_attempts')
+        .select('max_attempts, min_score_to_pass')
         .eq('id', questId)
         .single()
 
       const { data: attempts, error } = await supabase
         .from('student_quest_attempts')
-        .select('attempt_number, score, percentage, xp_earned, coins_earned')
+        .select('attempt_number, score, percentage, xp_earned, coins_earned, passed')
         .eq('student_id', user.id)
         .eq('quest_id', questId)
         .order('attempt_number', { ascending: false })
 
-      if (!error && attempts && attempts.length >= questData?.max_attempts) {
-        toast.error(`Maksimal percobaan (${questData.max_attempts}x) telah tercapai!`)
-        navigate(-1)
-        return
-      }
-
       if (!error && attempts && attempts.length > 0) {
+        // Support unlimited attempts: max_attempts = 0 or null means no limit
+        const maxAllowedAttempts = questData?.max_attempts || 0
+        const isUnlimited = maxAllowedAttempts === 0
+
+        // Block only if max attempts is limited AND all attempts used
+        if (!isUnlimited && attempts.length >= maxAllowedAttempts) {
+          toast.error(`Maksimal percobaan (${maxAllowedAttempts}x) telah tercapai!`)
+          navigate(-1)
+          return
+        }
+
         setAttemptNumber(attempts[0].attempt_number + 1)
         const bestAttempt = attempts.reduce((best, current) => 
           current.score > best.score ? current : best
@@ -151,11 +157,13 @@ function StudentQuestDetail() {
             question_text: qq.question?.question_text || '',
             question_type: qq.question?.question_type || '',
             options: parsedOptions,
+            rawOptions: rawOptions,
             correct_answer: correctAnswerKey,
             points: questionPoints,
             question_image_url: qq.question?.question_image_url,
             question_audio_url: qq.question?.question_audio_url,
-            question_video_url: qq.question?.question_video_url
+            question_video_url: qq.question?.question_video_url,
+            media_files: qq.question?.media_files || []
           }
         })
         
@@ -286,12 +294,82 @@ function StudentQuestDetail() {
             }).eq('id', user.id)
           }
         }
+
+        // Check if chapter is completed and award badge if applicable
+        if (isPassed && quest?.chapter_id) {
+          await checkAndAwardChapterBadge(user.id, quest.chapter_id)
+        }
       }
 
       navigate('/student/quest-result', { state: { result: resultData }, replace: true })
     } catch (error) {
       console.error('Error:', error)
       toast.error('Gagal submit quest')
+    }
+  }
+
+  const checkAndAwardChapterBadge = async (userId, chapterId) => {
+    try {
+      // Get all lessons in this chapter
+      const { data: lessons, error: lessonsError } = await supabase
+        .from('lessons')
+        .select('id')
+        .eq('chapter_id', chapterId)
+
+      if (lessonsError || !lessons || lessons.length === 0) return
+
+      const lessonIds = lessons.map(l => l.id)
+
+      // Get all quests for these lessons
+      const { data: quests, error: questsError } = await supabase
+        .from('quests')
+        .select('id, lesson_id')
+        .in('lesson_id', lessonIds)
+
+      if (questsError || !quests) return
+
+      const questIds = quests.map(q => q.id)
+      if (questIds.length === 0) return
+
+      // Get passed attempts for this student
+      const { data: passedAttempts } = await supabase
+        .from('student_quest_attempts')
+        .select('quest_id')
+        .eq('student_id', userId)
+        .eq('passed', true)
+        .in('quest_id', questIds)
+
+      if (!passedAttempts) return
+
+      const passedQuestIds = new Set(passedAttempts.map(a => a.quest_id))
+
+      // Check if all quests are passed
+      const allQuestsPassed = questIds.every(id => passedQuestIds.has(id))
+
+      if (allQuestsPassed) {
+        // Get chapter info to determine badge level
+        const { data: chapter } = await supabase
+          .from('chapters')
+          .select('floor_number')
+          .eq('id', chapterId)
+          .single()
+
+        if (chapter) {
+          // Award badge (floor_number should be 1-5 for unite-one to unite-five)
+          await supabase
+            .from('student_achievement_badges')
+            .upsert({
+              student_id: userId,
+              chapter_id: chapterId,
+              badge_type: 'chapter_completion',
+              badge_level: chapter.floor_number || 1
+            }, {
+              onConflict: 'student_id,chapter_id'
+            })
+        }
+      }
+    } catch (error) {
+      console.error('Error checking chapter badge:', error)
     }
   }
 
@@ -432,22 +510,15 @@ function StudentQuestDetail() {
                   {questions[currentQuestion].question_text}
                 </h3>
 
-                {/* Media */}
-                {questions[currentQuestion].question_image_url && (
-                  <div className="mb-4 rounded-lg overflow-hidden border border-gray-200">
-                    <img src={questions[currentQuestion].question_image_url} alt="" className="max-w-full h-auto max-h-64 mx-auto" />
-                  </div>
-                )}
-                {questions[currentQuestion].question_audio_url && (
-                  <audio controls className="w-full mb-4">
-                    <source src={questions[currentQuestion].question_audio_url} />
-                  </audio>
-                )}
-                {questions[currentQuestion].question_video_url && (
-                  <video controls className="w-full max-h-64 mb-4 rounded-lg">
-                    <source src={questions[currentQuestion].question_video_url} />
-                  </video>
-                )}
+                {/* Media - use MediaGallery for multiple files */}
+                <MediaGallery
+                  mediaFiles={mergeLegacyMedia(questions[currentQuestion], {
+                    question_image_url: 'question_image_url',
+                    question_audio_url: 'question_audio_url',
+                    question_video_url: 'question_video_url'
+                  })}
+                  className="mb-4"
+                />
 
                 {/* Options */}
                 {questions[currentQuestion].question_type === 'multiple_choice' && questions[currentQuestion].options && (
@@ -468,7 +539,15 @@ function StudentQuestDetail() {
                         }`}>
                           {key}
                         </div>
-                        <span className="text-gray-700 flex-1">{value}</span>
+                      <span className="text-gray-700 flex-1">
+                          {value}
+                          {/* Show option media if present */}
+                          {questions[currentQuestion].rawOptions &&
+                            Array.isArray(questions[currentQuestion].rawOptions) &&
+                            questions[currentQuestion].rawOptions[Object.keys(questions[currentQuestion].options).indexOf(key)]?.media && (
+                              <OptionMedia mediaFiles={questions[currentQuestion].rawOptions[Object.keys(questions[currentQuestion].options).indexOf(key)].media} />
+                          )}
+                        </span>
                         <input
                           type="radio"
                           name={`q-${questions[currentQuestion].id}`}

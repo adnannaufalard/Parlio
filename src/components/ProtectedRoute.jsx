@@ -14,6 +14,20 @@ function ProtectedRoute({ children, allowedRoles }) {
         navigate('/login')
         return
       }
+
+      try {
+        const activeUserId = localStorage.getItem('parlio_active_user_id')
+        if (activeUserId && activeUserId !== session.user.id) {
+          await supabase.auth.signOut()
+          navigate('/login')
+          return
+        }
+        if (!activeUserId) {
+          localStorage.setItem('parlio_active_user_id', session.user.id)
+        }
+      } catch {
+        // ignore storage errors
+      }
       // Fetch user profile to get role
       const { data: profile, error } = await supabase
         .from('profiles')

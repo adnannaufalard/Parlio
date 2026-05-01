@@ -28,8 +28,8 @@ import TeacherAccount from './pages/TeacherAccount'
 import StudentDashboard from './pages/StudentDashboard'
 import StudentClasses from './pages/StudentClasses'
 import StudentClassChapters from './pages/StudentClassChapters'
-import StudentChapterDetail from './pages/StudentChapterDetail'
 import StudentLessonDetail from './pages/StudentLessonDetail'
+import StudentMaterialDetail from './pages/StudentMaterialDetail'
 import StudentQuestDetail from './pages/StudentQuestDetail'
 import StudentQuestResult from './pages/StudentQuestResult'
 import StudentQuestAnswersDetail from './pages/StudentQuestAnswersDetail'
@@ -71,8 +71,8 @@ function App() {
         <Route path="/student/dashboard" element={<ProtectedRoute allowedRoles={['siswa']}><StudentDashboard /></ProtectedRoute>} />
         <Route path="/student/chapters" element={<ProtectedRoute allowedRoles={['siswa']}><StudentClasses /></ProtectedRoute>} />
         <Route path="/student/class/:classId" element={<ProtectedRoute allowedRoles={['siswa']}><StudentClassChapters /></ProtectedRoute>} />
-        <Route path="/student/chapters/:chapterId" element={<ProtectedRoute allowedRoles={['siswa']}><StudentChapterDetail /></ProtectedRoute>} />
         <Route path="/student/lesson/:lessonId" element={<ProtectedRoute allowedRoles={['siswa']}><StudentLessonDetail /></ProtectedRoute>} />
+        <Route path="/student/material/:materialId" element={<ProtectedRoute allowedRoles={['siswa']}><StudentMaterialDetail /></ProtectedRoute>} />
         <Route path="/student/quest/:questId" element={<ProtectedRoute allowedRoles={['siswa']}><StudentQuestDetail /></ProtectedRoute>} />
         <Route path="/student/quest-result" element={<ProtectedRoute allowedRoles={['siswa']}><StudentQuestResult /></ProtectedRoute>} />
         <Route path="/student/quest-answers/:attemptId" element={<ProtectedRoute allowedRoles={['siswa']}><StudentQuestAnswersDetail /></ProtectedRoute>} />

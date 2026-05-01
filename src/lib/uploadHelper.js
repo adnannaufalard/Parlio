@@ -84,7 +84,8 @@ export function validateFile(file, maxSizeMB = 50) {
   const allowedTypes = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg',
-    'video/mp4', 'video/webm', 'video/quicktime'
+    'video/mp4', 'video/webm', 'video/quicktime',
+    'application/pdf'
   ]
 
   // Check file type
@@ -99,4 +100,53 @@ export function validateFile(file, maxSizeMB = 50) {
   }
 
   return true
+}
+
+/**
+ * Detect media type from a file object
+ * @param {File} file
+ * @returns {string} - 'image', 'audio', 'video', 'pdf', or 'other'
+ */
+export function detectMediaTypeFromFile(file) {
+  if (file.type === 'application/pdf') return 'pdf'
+  if (file.type.startsWith('image/')) return 'image'
+  if (file.type.startsWith('audio/')) return 'audio'
+  if (file.type.startsWith('video/')) return 'video'
+  return 'other'
+}
+
+/**
+ * Detect media type from a URL string
+ * @param {string} url
+ * @returns {string} - 'video', 'audio', 'image', 'pdf', or 'link'
+ */
+export function detectMediaTypeFromUrl(url) {
+  if (!url) return 'link'
+  const lower = url.toLowerCase()
+  if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'video'
+  if (lower.match(/\.(mp4|webm|mov|avi)(\?|$)/)) return 'video'
+  if (lower.match(/\.(mp3|wav|ogg|m4a)(\?|$)/)) return 'audio'
+  if (lower.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/)) return 'image'
+  if (lower.match(/\.pdf(\?|$)/)) return 'pdf'
+  return 'link'
+}
+
+/**
+ * Upload multiple files and return array of media objects
+ * @param {File[]} files - Array of File objects
+ * @param {string} folder - Storage folder
+ * @returns {Promise<Array<{type, url, name, source}>>}
+ */
+export async function uploadMultipleMedia(files, folder = 'images') {
+  const results = []
+  for (const file of files) {
+    const { url } = await uploadQuestMedia(file, folder)
+    results.push({
+      type: detectMediaTypeFromFile(file),
+      url,
+      name: file.name,
+      source: 'upload'
+    })
+  }
+  return results
 }

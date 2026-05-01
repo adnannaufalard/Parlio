@@ -23,6 +23,11 @@ import 'react-image-crop/dist/ReactCrop.css'
 import badge1 from '../assets/badge/peringkat1.png'
 import badge2 from '../assets/badge/peringkat2.png'
 import badge3 from '../assets/badge/peringkat3.png'
+import uniteOne from '../assets/badge/unite-one.png'
+import uniteTwo from '../assets/badge/unite-two.png'
+import uniteThree from '../assets/badge/unite-three.png'
+import uniteFour from '../assets/badge/unite-four.png'
+import uniteFive from '../assets/badge/unite-five.png'
 
 export default function StudentProfile() {
   const navigate = useNavigate()
@@ -41,6 +46,7 @@ export default function StudentProfile() {
   })
   const [questAttempts, setQuestAttempts] = useState([])
   const [leaderboardBadges, setLeaderboardBadges] = useState([])
+  const [achievementBadges, setAchievementBadges] = useState([])
   const [activeSection, setActiveSection] = useState('statistik')
   const [formData, setFormData] = useState({
     fullName: '',
@@ -204,6 +210,18 @@ export default function StudentProfile() {
         .order('awarded_at', { ascending: false })
 
       setLeaderboardBadges(badgesData || [])
+
+      // Fetch achievement badges (chapter completion)
+      const { data: achievementBadgesData } = await supabase
+        .from('student_achievement_badges')
+        .select(`
+          *,
+          chapter:chapters(id, title, floor_number)
+        `)
+        .eq('student_id', user.id)
+        .order('badge_level', { ascending: true })
+
+      setAchievementBadges(achievementBadgesData || [])
 
       setStats({
         xp,
@@ -609,89 +627,147 @@ export default function StudentProfile() {
 
         {/* Pencapaian Section */}
         {activeSection === 'pencapaian' && (
-          <div className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center gap-2 mb-4">
-              <Award className="h-5 w-5 text-amber-500" />
-              <h2 className="text-lg font-bold text-gray-900">Pencapaian Periode</h2>
-            </div>
+          <div className="space-y-6">
+            {/* Achievement Badges Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Award className="h-5 w-5 text-blue-500" />
+                <h2 className="text-lg font-bold text-gray-900">Badge Penyelesaian Bab</h2>
+              </div>
 
-            {leaderboardBadges.length > 0 ? (
-              <div className="space-y-3">
-                {leaderboardBadges.map((badge) => {
-                  const style = getRankStyle(badge.rank)
-                  const rankText = badge.rank === 1 ? 'Juara 1' : badge.rank === 2 ? 'Juara 2' : 'Juara 3'
-                  const scopeText = badge.leaderboard_settings?.class_id ? 'Leaderboard Kelas' : 'Leaderboard Global'
-                  
-                  return (
-                    <div 
-                      key={badge.id} 
-                      className={`${style.bg} ${style.border} border rounded-2xl p-4 shadow-md ${style.shadow} transition-all hover:scale-[1.02] animate-in fade-in slide-in-from-bottom-2 duration-300`}
-                    >
-                      <div className="flex items-center gap-4">
-                        {/* Badge Image */}
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-white/50 rounded-full blur-sm"></div>
-                          <img 
-                            src={getBadgeImg(badge.rank)} 
-                            alt={rankText} 
-                            className="h-16 w-16 object-contain relative z-10 drop-shadow-md" 
-                          />
-                        </div>
-                        
-                        {/* Badge Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className={`text-lg font-bold ${style.text}`}>{rankText}</h3>
-                            {badge.rank === 1 && <span className="text-yellow-500">👑</span>}
-                          </div>
-                          <p className="text-sm font-medium text-gray-700 truncate">
-                            {badge.leaderboard_settings?.period_name || 'Periode'}
-                          </p>
-                          <p className="text-xs text-gray-500">{scopeText}</p>
-                        </div>
-                        
-                        {/* Date & XP */}
-                        <div className="text-right">
-                          <p className="text-xs font-medium text-gray-600">
+              {achievementBadges && achievementBadges.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                  {achievementBadges.map((badge) => {
+                    const badgeImages = [
+                      null,
+                      uniteOne,
+                      uniteTwo,
+                      uniteThree,
+                      uniteFour,
+                      uniteFive
+                    ]
+                    const badgeImage = badgeImages[badge.badge_level] || uniteOne
+                    const chapterName = badge.chapter?.title || `Bab ${badge.badge_level}`
+                    
+                    return (
+                      <div 
+                        key={badge.id}
+                        className="flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-200 hover:shadow-lg transition-all"
+                        title={chapterName}
+                      >
+                        <img 
+                          src={badgeImage} 
+                          alt={chapterName}
+                          className="h-16 w-16 object-contain drop-shadow-md"
+                        />
+                        <div className="text-center">
+                          <p className="text-xs font-semibold text-blue-900 line-clamp-2">{chapterName}</p>
+                          <p className="text-xs text-blue-600 mt-1">
                             {new Date(badge.awarded_at).toLocaleDateString('id-ID', { 
                               day: 'numeric', 
-                              month: 'short', 
-                              year: 'numeric' 
+                              month: 'short'
                             })}
                           </p>
-                          {badge.xp_at_end > 0 && (
-                            <p className="text-xs text-purple-600 font-semibold mt-1">
-                              {badge.xp_at_end} XP
-                            </p>
-                          )}
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              /* Empty State */
-              <div className="bg-gradient-to-br from-gray-50 to-slate-100 rounded-2xl p-8 text-center border border-gray-200">
-                <div className="relative w-20 h-20 mx-auto mb-4">
-                  <div className="absolute inset-0 bg-gray-200 rounded-full animate-pulse"></div>
-                  <Award className="h-12 w-12 text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                    )
+                  })}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Belum Ada Pencapaian</h3>
-                <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                  Pencapaian akan muncul setelah kamu meraih peringkat di leaderboard saat periode berakhir.
-                </p>
-                <div className="flex items-center justify-center gap-2 mt-4 p-3 bg-white rounded-xl border border-gray-200">
-                  <img src={badge1} alt="Badge 1" className="h-8 w-8 opacity-40" />
-                  <img src={badge2} alt="Badge 2" className="h-7 w-7 opacity-40" />
-                  <img src={badge3} alt="Badge 3" className="h-6 w-6 opacity-40" />
+              ) : (
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6 text-center border border-blue-200">
+                  <div className="text-4xl mb-3">🏆</div>
+                  <h3 className="text-sm font-semibold text-blue-900 mb-1">Belum Ada Badge</h3>
+                  <p className="text-xs text-blue-700">
+                    Selesaikan semua sub bab pada setiap bab untuk mendapatkan badge!
+                  </p>
                 </div>
-                <p className="text-xs text-gray-400 mt-3">
-                  Raih Top 3 di leaderboard untuk mendapatkan badge!
-                </p>
+              )}
+            </div>
+
+            {/* Leaderboard Badges Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Award className="h-5 w-5 text-amber-500" />
+                <h2 className="text-lg font-bold text-gray-900">Pencapaian Periode</h2>
               </div>
-            )}
+
+              {leaderboardBadges.length > 0 ? (
+                <div className="space-y-3">
+                  {leaderboardBadges.map((badge) => {
+                    const style = getRankStyle(badge.rank)
+                    const rankText = badge.rank === 1 ? 'Juara 1' : badge.rank === 2 ? 'Juara 2' : 'Juara 3'
+                    const scopeText = badge.leaderboard_settings?.class_id ? 'Leaderboard Kelas' : 'Leaderboard Global'
+                    
+                    return (
+                      <div 
+                        key={badge.id} 
+                        className={`${style.bg} ${style.border} border rounded-2xl p-4 shadow-md ${style.shadow} transition-all hover:scale-[1.02] animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                      >
+                        <div className="flex items-center gap-4">
+                          {/* Badge Image */}
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-white/50 rounded-full blur-sm"></div>
+                            <img 
+                              src={getBadgeImg(badge.rank)} 
+                              alt={rankText} 
+                              className="h-16 w-16 object-contain relative z-10 drop-shadow-md" 
+                            />
+                          </div>
+                          
+                          {/* Badge Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className={`text-lg font-bold ${style.text}`}>{rankText}</h3>
+                              {badge.rank === 1 && <span className="text-yellow-500">👑</span>}
+                            </div>
+                            <p className="text-sm font-medium text-gray-700 truncate">
+                              {badge.leaderboard_settings?.period_name || 'Periode'}
+                            </p>
+                            <p className="text-xs text-gray-500">{scopeText}</p>
+                          </div>
+                          
+                          {/* Date & XP */}
+                          <div className="text-right">
+                            <p className="text-xs font-medium text-gray-600">
+                              {new Date(badge.awarded_at).toLocaleDateString('id-ID', { 
+                                day: 'numeric', 
+                                month: 'short', 
+                                year: 'numeric' 
+                              })}
+                            </p>
+                            {badge.xp_at_end > 0 && (
+                              <p className="text-xs text-purple-600 font-semibold mt-1">
+                                {badge.xp_at_end} XP
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                /* Empty State */
+                <div className="bg-gradient-to-br from-gray-50 to-slate-100 rounded-2xl p-8 text-center border border-gray-200">
+                  <div className="relative w-20 h-20 mx-auto mb-4">
+                    <div className="absolute inset-0 bg-gray-200 rounded-full animate-pulse"></div>
+                    <Award className="h-12 w-12 text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Belum Ada Pencapaian</h3>
+                  <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                    Pencapaian akan muncul setelah kamu meraih peringkat di leaderboard saat periode berakhir.
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mt-4 p-3 bg-white rounded-xl border border-gray-200">
+                    <img src={badge1} alt="Badge 1" className="h-8 w-8 opacity-40" />
+                    <img src={badge2} alt="Badge 2" className="h-7 w-7 opacity-40" />
+                    <img src={badge3} alt="Badge 3" className="h-6 w-6 opacity-40" />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-3">
+                    Raih Top 3 di leaderboard untuk mendapatkan badge!
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

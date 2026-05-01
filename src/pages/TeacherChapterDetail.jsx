@@ -18,11 +18,11 @@ function TeacherChapterDetail() {
   const { chapterId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  
+
   // Get color index from navigation state, default to 0
   const colorIndex = location.state?.colorIndex || 0
   const bgColor = bgColors[colorIndex % bgColors.length]
-  
+
   const [chapter, setChapter] = useState(null)
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(true)
@@ -36,7 +36,7 @@ function TeacherChapterDetail() {
   const fetchChapterData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch chapter info
       const { data: chapterData, error: chapterError } = await supabase
         .from('chapters')
@@ -141,60 +141,63 @@ function TeacherChapterDetail() {
   return (
     <TeacherLayout>
       <div className="p-6 space-y-6">
-        {/* Header Card with Dynamic Gradient Color */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className={`bg-gradient-to-r ${bgColor} p-6 text-white`}>
-            {/* Back Button */}
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-6">
             <button
               onClick={() => navigate('/teacher/quest-builder')}
-              className="flex items-center gap-2 text-white/80 hover:text-white transition mb-4"
+              className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors flex-shrink-0"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span className="text-sm font-medium">Kembali</span>
             </button>
-
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  {chapter.is_published ? (
-                    <span className="text-xs bg-green-500 px-2 py-1 rounded-full">Published</span>
-                  ) : (
-                    <span className="text-xs bg-yellow-500 px-2 py-1 rounded-full">Draft</span>
-                  )}
-                </div>
-                <h1 className="text-2xl font-bold mb-2">{chapter.title}</h1>
-                <p className="text-white/90 text-sm">{chapter.description || 'Tidak ada deskripsi'}</p>
-              </div>
-              <div className="text-4xl ml-4"></div>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs font-semibold tracking-wide text-gray-400 font-['Poppins']">
+              <span>Quest Builder</span>
+              <svg className="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              <span className="text-[#4f46e5]">Bab {chapter.floor_number}</span>
             </div>
+          </div>
 
-            {/* Stats Row */}
-            <div className="mt-6 grid grid-cols-3 gap-4">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold">{lessons.length}</p>
-                <p className="text-xs text-white/80">Sub Bab</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold">{totalMaterials}</p>
-                <p className="text-xs text-white/80">Materi</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold">{totalQuests}</p>
-                <p className="text-xs text-white/80">Quest</p>
-              </div>
+          <div className="flex items-center gap-3 mb-3">
+            {chapter.is_published ? (
+              <span className="text-[10px] font-semibold tracking-wide bg-green-50 text-green-600 px-2 py-0.5 rounded font-['Poppins'] uppercase">Published</span>
+            ) : (
+              <span className="text-[10px] font-semibold tracking-wide bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded font-['Poppins'] uppercase">Draft</span>
+            )}
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 font-['Poppins'] mb-3 tracking-tight leading-tight">
+            {chapter.title}
+          </h1>
+          {chapter.description && (
+            <p className="text-xs sm:text-sm text-gray-600 font-['Poppins'] leading-relaxed max-w-4xl">
+              {chapter.description}
+            </p>
+          )}
+
+          {/* Stats Row */}
+          <div className="flex gap-4 mt-6">
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl px-4 py-3 min-w-[90px] text-center">
+              <p className="text-xl font-semibold text-gray-800 font-['Poppins']">{lessons.length}</p>
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider font-['Poppins'] mt-1">Sub Bab</p>
+            </div>
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl px-4 py-3 min-w-[90px] text-center">
+              <p className="text-xl font-semibold text-gray-800 font-['Poppins']">{totalMaterials}</p>
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider font-['Poppins'] mt-1">Materi</p>
+            </div>
+            <div className="bg-white border border-gray-100 shadow-sm rounded-xl px-4 py-3 min-w-[90px] text-center">
+              <p className="text-xl font-semibold text-gray-800 font-['Poppins']">{totalQuests}</p>
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider font-['Poppins'] mt-1">Quest</p>
             </div>
           </div>
         </div>
 
         {/* Sub Bab List - Simplified */}
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-900">Daftar Sub Bab</h2>
+          <div className="flex justify-between items-center px-1 mb-2">
+            <h2 className="text-base font-semibold text-gray-900 font-['Poppins']">Daftar Sub Bab</h2>
             <button
               onClick={handleCreateLesson}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
+              className="flex items-center gap-2 bg-[#4f46e5] text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition text-xs font-semibold font-['Poppins']"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -224,44 +227,46 @@ function TeacherChapterDetail() {
           ) : (
             <div className="space-y-3">
               {lessons.map((lesson, idx) => (
-                <div 
-                  key={lesson.id} 
-                  className="bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer border border-transparent hover:border-blue-200"
+                <div
+                  key={lesson.id}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition cursor-pointer hover:border-indigo-200"
                   onClick={() => goToLessonDetail(lesson.id)}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${bgColor} flex items-center justify-center text-white font-bold text-lg`}>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-12 h-12 rounded-full bg-indigo-50 text-[#4f46e5] flex items-center justify-center font-semibold text-lg flex-shrink-0">
                         {idx + 1}
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{lesson.title}</h3>
+                      <div className="min-w-0 pr-4">
+                        <h3 className="font-semibold text-sm sm:text-base text-gray-900 font-['Poppins'] truncate">{lesson.title}</h3>
                         {lesson.description && (
-                          <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{lesson.description}</p>
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 font-['Poppins']">{lesson.description}</p>
                         )}
-                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                          <span className="flex items-center gap-1">
-                            <span className="text-green-600">📚</span> {lesson.materials?.length || 0} Materi
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-2 font-['Poppins'] flex-wrap">
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-gray-400">📚</span> {lesson.materials?.length || 0} Materi
                           </span>
-                          <span className="flex items-center gap-1">
-                            <span className="text-purple-600">🎯</span> {lesson.quests?.length || 0} Quest
+                          <span className="text-gray-300">•</span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-gray-400">🎯</span> {lesson.quests?.length || 0} Quest
                           </span>
-                          <span className="flex items-center gap-1">
-                            <span className="text-blue-600">⏱️</span> {lesson.estimated_duration} mnt
+                          <span className="text-gray-300">•</span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-gray-400">⏱️</span> {lesson.estimated_duration} mnt
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-shrink-0 ml-auto">
                       {lesson.is_published ? (
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Published</span>
+                        <span className="hidden sm:inline-block text-[10px] bg-green-50 text-green-600 font-semibold px-2 py-0.5 rounded uppercase font-['Poppins']">Published</span>
                       ) : (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Draft</span>
+                        <span className="hidden sm:inline-block text-[10px] bg-yellow-50 text-yellow-600 font-semibold px-2 py-0.5 rounded uppercase font-['Poppins']">Draft</span>
                       )}
                       <div className="flex items-center gap-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleEditLesson(lesson) }}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
                           title="Edit Sub Bab"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,7 +283,7 @@ function TeacherChapterDetail() {
                           </svg>
                         </button>
                       </div>
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="hidden sm:block w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
@@ -296,7 +301,7 @@ function TeacherChapterDetail() {
             <div>
               <h4 className="font-medium text-blue-900 mb-1">Alur Pembelajaran Siswa</h4>
               <p className="text-sm text-blue-700">
-                Siswa akan <strong>membaca materi terlebih dahulu</strong>, kemudian setelah selesai baru bisa <strong>mengerjakan quest/tugas</strong>. 
+                Siswa akan <strong>membaca materi terlebih dahulu</strong>, kemudian setelah selesai baru bisa <strong>mengerjakan quest/tugas</strong>.
                 Pastikan materi sudah lengkap sebelum menambahkan quest.
               </p>
             </div>

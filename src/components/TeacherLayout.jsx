@@ -69,13 +69,27 @@ function Icon({ name, className = "h-5 w-5" }) {
 export default function TeacherLayout({ children, rightPanel, showRightPanel = false }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => {
+    try {
+      return localStorage.getItem('parlio_teacher_sidebar_expanded') === 'true'
+    } catch {
+      return false
+    }
+  })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [teacherProfile, setTeacherProfile] = useState({ fullName: 'Guru', email: '' })
 
   useEffect(() => {
     fetchTeacherProfile()
   }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('parlio_teacher_sidebar_expanded', String(sidebarExpanded))
+    } catch {
+      // ignore storage errors
+    }
+  }, [sidebarExpanded])
 
   const fetchTeacherProfile = async () => {
     try {
@@ -117,6 +131,11 @@ export default function TeacherLayout({ children, rightPanel, showRightPanel = f
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut()
+      try {
+        localStorage.removeItem('parlio_active_user_id')
+      } catch {
+        // ignore storage errors
+      }
       navigate('/login')
     } catch (error) {
       console.error('Logout error:', error)
@@ -134,7 +153,7 @@ export default function TeacherLayout({ children, rightPanel, showRightPanel = f
     { label: 'Store', path: '/teacher/store', icon: 'store' },
     { label: 'Reward', path: '/teacher/reward', icon: 'reward' },
     { label: 'Laporan', path: '/teacher/reports', icon: 'report' },
-    { label: 'Akun', path: '/teacher/account', icon: 'account' }
+    { label: 'Profile', path: '/teacher/account', icon: 'account' }
   ]
 
   return (
@@ -172,7 +191,7 @@ export default function TeacherLayout({ children, rightPanel, showRightPanel = f
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-slate-100">
-            <img src={Logo1} alt="Parlio" className="h-10 object-contain" />
+            <img src={Logo1} alt="Parlio" className="h-8 object-contain" />
             <button
               onClick={() => setMobileMenuOpen(false)}
               className="p-2 rounded-lg hover:bg-slate-100 text-slate-600"
@@ -238,16 +257,12 @@ export default function TeacherLayout({ children, rightPanel, showRightPanel = f
         `}
       >
         {/* Logo */}
-        <div className={`p-4 border-b border-slate-100 ${sidebarExpanded ? '' : 'flex justify-center'}`}>
+        <div className={`flex items-center gap-2 border-b border-slate-100 ${sidebarExpanded ? 'p-4 justify-between' : 'px-2 py-3 justify-center'}`}>
           {sidebarExpanded ? (
             <img src={Logo1} alt="Parlio" className="h-10 object-contain" />
           ) : (
-            <img src={Logo1} alt="Parlio" className="h-10 w-10 object-contain" />
+            <div />
           )}
-        </div>
-
-        {/* Toggle */}
-        <div className="flex justify-center py-3 border-b border-slate-100">
           <button
             onClick={() => setSidebarExpanded(!sidebarExpanded)}
             className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"

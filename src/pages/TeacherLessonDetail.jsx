@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
+import MultiMediaManager from '../components/MultiMediaManager'
+import MediaGallery, { mergeLegacyMedia } from '../components/MediaGallery'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
@@ -13,10 +15,10 @@ function TeacherLessonDetail() {
   const [materials, setMaterials] = useState([])
   const [quests, setQuests] = useState([])
   const [loading, setLoading] = useState(true)
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState('materi')
-  
+
   // Modals
   const [showMaterialModal, setShowMaterialModal] = useState(false)
   const [showQuestModal, setShowQuestModal] = useState(false)
@@ -30,7 +32,7 @@ function TeacherLessonDetail() {
   const fetchLessonData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch lesson with chapter
       const { data: lessonData, error: lessonError } = await supabase
         .from('lessons')
@@ -96,7 +98,7 @@ function TeacherLessonDetail() {
       toast.error(`Tidak bisa hapus! Ada ${questsUsingMaterial.length} quest yang menggunakan materi ini.`)
       return
     }
-    
+
     if (!confirm('Yakin ingin menghapus materi ini?')) return
 
     try {
@@ -178,62 +180,68 @@ function TeacherLessonDetail() {
   return (
     <TeacherLayout>
       <div className="p-6 space-y-6">
-        {/* Breadcrumb Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        {/* Header Back & Breadcrumbs */}
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(`/teacher/quest-builder/chapter/${chapter.id}`)}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+              className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors flex-shrink-0"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
-            <h1 className="text-lg font-semibold text-gray-900">
-              Pelajaran {chapter.floor_number} / Sub Bab {lesson.lesson_order}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs font-semibold tracking-wide text-gray-400 font-['Poppins']">
+              <span>Quest Builder</span>
+              <svg className="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              <span>Bab {chapter.floor_number}</span>
+              <svg className="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              <span className="text-[#4f46e5] truncate max-w-[150px]">Sub Bab {lesson.lesson_order}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="px-2 py-1 bg-green-100 text-green-700 rounded">{materials.length} Materi</span>
-            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">{quests.length} Quest</span>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 font-['Poppins'] mb-3 tracking-tight leading-tight">
+              {lesson.title}
+            </h1>
+            {lesson.description && (
+              <p className="text-xs sm:text-sm text-gray-600 font-['Poppins'] leading-relaxed max-w-4xl">
+                {lesson.description}
+              </p>
+            )}
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="flex border-b border-gray-200">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex border-b border-gray-100">
             <button
               onClick={() => setActiveTab('materi')}
-              className={`flex-1 py-4 px-6 text-center font-medium transition ${
-                activeTab === 'materi'
-                  ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`flex-1 py-4 px-6 text-center font-medium transition ${activeTab === 'materi'
+                ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
             >
               <div className="flex items-center justify-center gap-2">
-                <span className="text-xl">📚</span>
-                <span>Materi</span>
-                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                  activeTab === 'materi' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                }`}>
+                <span className="text-lg">📚</span>
+                <span className="font-semibold font-['Poppins'] text-sm">Materi</span>
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold ${activeTab === 'materi' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                  }`}>
                   {materials.length}
                 </span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab('quest')}
-              className={`flex-1 py-4 px-6 text-center font-medium transition ${
-                activeTab === 'quest'
-                  ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`flex-1 py-4 px-6 text-center font-medium transition ${activeTab === 'quest'
+                ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
             >
               <div className="flex items-center justify-center gap-2">
-                <span className="text-xl">🎯</span>
-                <span>Quest</span>
-                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                  activeTab === 'quest' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'
-                }`}>
+                <span className="text-lg">🎯</span>
+                <span className="font-semibold font-['Poppins'] text-sm">Quest</span>
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold ${activeTab === 'quest' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'
+                  }`}>
                   {quests.length}
                 </span>
               </div>
@@ -243,7 +251,7 @@ function TeacherLessonDetail() {
           {/* Tab Content */}
           <div className="p-6">
             {activeTab === 'materi' ? (
-              <MaterialsTab 
+              <MaterialsTab
                 materials={materials}
                 quests={quests}
                 onAdd={handleCreateMaterial}
@@ -252,7 +260,7 @@ function TeacherLessonDetail() {
                 getIcon={getIcon}
               />
             ) : (
-              <QuestsTab 
+              <QuestsTab
                 quests={quests}
                 materials={materials}
                 onAdd={handleCreateQuest}
@@ -309,89 +317,11 @@ function TeacherLessonDetail() {
 function MaterialPreviewModal({ material, onClose, getIcon }) {
   if (!material) return null
 
-  const openInNewTab = () => {
-    if (material.file_url) {
-      window.open(material.file_url, '_blank', 'noopener,noreferrer')
-    }
-  }
+  // Merge legacy file_url + media_files for display
+  const allMedia = mergeLegacyMedia(material, { file_url: 'file_url' })
 
-  const renderPreview = () => {
-    const type = material.material_type
-    const url = material.file_url
-
-    if (type === 'text') {
-      return (
-        <div className="bg-gray-50 rounded-lg p-4 max-h-64 overflow-y-auto">
-          <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-            {material.content || 'Tidak ada konten text'}
-          </div>
-        </div>
-      )
-    }
-
-    if (type === 'video') {
-      // Check if it's YouTube
-      const isYouTube = url?.includes('youtube.com') || url?.includes('youtu.be')
-      if (isYouTube) {
-        let videoId = ''
-        if (url.includes('youtu.be/')) {
-          videoId = url.split('youtu.be/')[1]?.split('?')[0]
-        } else if (url.includes('v=')) {
-          videoId = url.split('v=')[1]?.split('&')[0]
-        }
-        return (
-          <div className="aspect-video rounded-lg overflow-hidden bg-black">
-            <iframe
-              src={`https://www.youtube.com/embed/${videoId}`}
-              className="w-full h-full"
-              allowFullScreen
-              title={material.title}
-            />
-          </div>
-        )
-      }
-      // Regular video
-      return (
-        <div className="aspect-video rounded-lg overflow-hidden bg-black">
-          <video src={url} controls className="w-full h-full" />
-        </div>
-      )
-    }
-
-    if (type === 'image') {
-      return (
-        <div className="flex justify-center bg-gray-100 rounded-lg p-4">
-          <img src={url} alt={material.title} className="max-h-64 rounded-lg object-contain" />
-        </div>
-      )
-    }
-
-    if (type === 'audio') {
-      return (
-        <div className="bg-gray-100 rounded-lg p-6 flex flex-col items-center gap-4">
-          <div className="text-5xl">🎵</div>
-          <audio src={url} controls className="w-full" />
-        </div>
-      )
-    }
-
-    if (type === 'document' || type === 'pdf') {
-      return (
-        <div className="bg-gray-100 rounded-lg p-6 text-center">
-          <div className="text-5xl mb-3">📄</div>
-          <p className="text-gray-600 text-sm">Preview dokumen tidak tersedia</p>
-          <p className="text-gray-500 text-xs mt-1">Klik tombol di bawah untuk membuka dokumen</p>
-        </div>
-      )
-    }
-
-    return (
-      <div className="bg-gray-100 rounded-lg p-6 text-center">
-        <div className="text-5xl mb-3">{getIcon(type)}</div>
-        <p className="text-gray-600 text-sm">Preview tidak tersedia untuk tipe ini</p>
-      </div>
-    )
-  }
+  // For text type, also show content
+  const isText = material.material_type === 'text'
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -404,7 +334,14 @@ function MaterialPreviewModal({ material, onClose, getIcon }) {
             </div>
             <div>
               <h2 className="font-bold text-gray-900">{material.title}</h2>
-              <span className="text-xs text-gray-500 uppercase">{material.material_type}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 uppercase">{material.material_type}</span>
+                {allMedia.length > 1 && (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                    📎 {allMedia.length} file
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
@@ -429,11 +366,36 @@ function MaterialPreviewModal({ material, onClose, getIcon }) {
             </div>
           )}
 
-          {/* Preview */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Preview Materi</h3>
-            {renderPreview()}
-          </div>
+          {/* Text content */}
+          {isText && material.content && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Konten Materi</h3>
+              <div className="bg-gray-50 rounded-lg p-4 max-h-64 overflow-y-auto">
+                <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
+                  {material.content}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Media Preview - using MediaGallery */}
+          {allMedia.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                {isText ? 'Media Pendukung' : 'Preview Materi'}
+                {allMedia.length > 1 && ` (${allMedia.length} file)`}
+              </h3>
+              <MediaGallery mediaFiles={allMedia} />
+            </div>
+          )}
+
+          {/* Fallback if no content */}
+          {!isText && allMedia.length === 0 && (
+            <div className="bg-gray-100 rounded-lg p-6 text-center">
+              <div className="text-5xl mb-3">{getIcon(material.material_type)}</div>
+              <p className="text-gray-600 text-sm">Tidak ada preview tersedia</p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -444,17 +406,6 @@ function MaterialPreviewModal({ material, onClose, getIcon }) {
           >
             Tutup
           </button>
-          {material.file_url && material.material_type !== 'text' && (
-            <button
-              onClick={openInNewTab}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              Buka di Tab Baru
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -472,11 +423,11 @@ function MaterialsTab({ materials, quests, onAdd, onEdit, onDelete, getIcon }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-900">Daftar Materi</h2>
+      <div className="flex justify-between items-center px-1 mb-2">
+        <h2 className="text-base font-semibold text-gray-900 font-['Poppins']">Daftar Materi</h2>
         <button
           onClick={onAdd}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm"
+          className="flex items-center gap-2 bg-[#4f46e5] text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition text-xs font-semibold font-['Poppins']"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -506,32 +457,30 @@ function MaterialsTab({ materials, quests, onAdd, onEdit, onDelete, getIcon }) {
       ) : (
         <div className="space-y-3">
           {materials.map((material, idx) => (
-            <div 
-              key={material.id} 
-              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-green-300 transition"
+            <div
+              key={material.id}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition hover:border-indigo-200"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-gray-400 w-6">{idx + 1}.</span>
-                    <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center text-2xl">
-                      {getIcon(material.material_type)}
-                    </div>
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 text-[#4f46e5] flex items-center justify-center font-semibold text-lg flex-shrink-0">
+                    {idx + 1}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{material.title}</h3>
-                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                      <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-700 uppercase">
+                  <div className="min-w-0 pr-4">
+                    <h3 className="font-semibold text-sm sm:text-base text-gray-900 font-['Poppins'] truncate">{material.title}</h3>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-2 font-['Poppins'] flex-wrap">
+                      <span className="text-[10px] font-semibold tracking-wide bg-gray-100 text-gray-600 px-2 py-0.5 rounded uppercase">
                         {material.material_type}
                       </span>
-                      <span className="text-purple-600 font-medium">
-                        🎯 {getQuestCount(material.id)} Quest
+                      <span className="text-gray-300">•</span>
+                      <span className="text-gray-500 font-medium">
+                        {getQuestCount(material.id)} Quest
                       </span>
-                      <button 
+                      <button
                         onClick={() => setPreviewMaterial(material)}
                         className="text-blue-600 hover:text-blue-700 hover:underline"
                       >
-                        👁️ Lihat Materi
+                        Lihat Materi
                       </button>
                     </div>
                   </div>
@@ -578,11 +527,11 @@ function MaterialsTab({ materials, quests, onAdd, onEdit, onDelete, getIcon }) {
 function QuestsTab({ quests, materials, onAdd, onEdit, onDelete, getIcon, navigate }) {
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-900">Daftar Quest</h2>
+      <div className="flex justify-between items-center px-1 mb-2">
+        <h2 className="text-base font-semibold text-gray-900 font-['Poppins']">Daftar Quest</h2>
         <button
           onClick={onAdd}
-          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm"
+          className="flex items-center gap-2 bg-[#4f46e5] text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition text-xs font-semibold font-['Poppins']"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -620,41 +569,37 @@ function QuestsTab({ quests, materials, onAdd, onEdit, onDelete, getIcon, naviga
       ) : (
         <div className="space-y-3">
           {quests.map((quest, idx) => (
-            <div 
-              key={quest.id} 
-              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition"
+            <div
+              key={quest.id}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition hover:border-indigo-200"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-gray-400 w-6">{idx + 1}.</span>
-                    <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center text-2xl">
-                      🎯
-                    </div>
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 text-[#4f46e5] flex items-center justify-center font-semibold text-lg flex-shrink-0">
+                    {idx + 1}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900">{quest.title}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        quest.is_published 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
+                  <div className="flex-1 min-w-0 pr-4">
+                    <div className="flex items-center gap-2 mb-2 font-['Poppins']">
+                      <h3 className="font-semibold text-sm sm:text-base text-gray-900 truncate">{quest.title}</h3>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wide ${quest.is_published
+                        ? 'bg-green-50 text-green-600'
+                        : 'bg-yellow-50 text-yellow-600'
+                        }`}>
                         {quest.is_published ? 'Published' : 'Draft'}
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs text-gray-500 font-['Poppins']">
                       {/* Material Info */}
                       {quest.material && (
-                        <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 flex items-center gap-1 uppercase tracking-wide font-semibold">
                           {getIcon(quest.material.material_type)} {quest.material.title}
                         </span>
                       )}
-                      <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700">{quest.quest_type}</span>
-                      <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">{quest.difficulty}</span>
-                      <span>+{quest.xp_reward} XP</span>
-                      <span>+{quest.coins_reward} 🪙</span>
-                      <span className="font-medium">{quest.questions?.[0]?.count || 0} soal</span>
+                      <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-600 uppercase tracking-wide font-semibold">{quest.quest_type}</span>
+                      <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-600 uppercase tracking-wide font-semibold">{quest.difficulty}</span>
+                      <span className="flex items-center gap-1 text-amber-600 font-semibold ml-1">+{quest.xp_reward} XP</span>
+                      <span className="flex items-center gap-1 text-yellow-600 font-semibold ml-1">+{quest.coins_reward} 🪙</span>
+                      <span className="flex items-center gap-1 text-gray-600 font-semibold ml-1">{quest.questions?.[0]?.count || 0} soal</span>
                     </div>
                   </div>
                 </div>
@@ -699,15 +644,15 @@ function VideoPreview({ url }) {
     try {
       const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
       const match = url.match(youtubeRegex)
-      
+
       if (match && match[1]) {
         return `https://www.youtube.com/embed/${match[1]}`
       }
-      
+
       if (url.includes('youtube.com/embed/') || url.includes('.mp4') || url.includes('.webm')) {
         return url
       }
-      
+
       return url
     } catch (error) {
       return url
@@ -746,14 +691,11 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
     title: '',
     description: '',
     material_type: 'video',
-    file_url: '',
     content: '',
     material_order: materialsCount + 1
   })
+  const [mediaFiles, setMediaFiles] = useState([])
   const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [uploadMethod, setUploadMethod] = useState('url')
-  const [selectedFile, setSelectedFile] = useState(null)
 
   useEffect(() => {
     if (material) {
@@ -761,57 +703,25 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
         title: material.title || '',
         description: material.description || '',
         material_type: material.material_type || 'video',
-        file_url: material.file_url || '',
         content: material.content || '',
         material_order: material.material_order || 1
       })
+      // Load existing media: merge legacy file_url + media_files
+      const existing = []
       if (material.file_url) {
-        setUploadMethod('url')
+        existing.push({
+          type: material.material_type || 'link',
+          url: material.file_url,
+          name: material.title || 'Media',
+          source: 'legacy'
+        })
       }
+      const mf = Array.isArray(material.media_files) ? material.media_files : []
+      const existingUrls = new Set(existing.map(m => m.url))
+      mf.forEach(m => { if (!existingUrls.has(m.url)) existing.push(m) })
+      setMediaFiles(existing)
     }
   }, [material])
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setSelectedFile(file)
-      if (!form.title) {
-        const fileName = file.name.replace(/\.[^/.]+$/, '')
-        setForm({ ...form, title: fileName })
-      }
-    }
-  }
-
-  const uploadFile = async (file) => {
-    try {
-      setUploading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `lesson-materials/${fileName}`
-
-      const { data, error } = await supabase.storage
-        .from('materials')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        })
-
-      if (error) throw error
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('materials')
-        .getPublicUrl(filePath)
-
-      return publicUrl
-    } catch (error) {
-      console.error('Error uploading file:', error)
-      throw error
-    } finally {
-      setUploading(false)
-    }
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -820,27 +730,31 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
     try {
       const { data: { user } } = await supabase.auth.getUser()
 
-      let fileUrl = form.file_url
-
-      if (uploadMethod === 'upload' && selectedFile && form.material_type !== 'text') {
-        fileUrl = await uploadFile(selectedFile)
-      }
-
       if (form.material_type === 'text' && !form.content) {
         toast.error('Konten text harus diisi')
         setLoading(false)
         return
       }
 
-      if (form.material_type !== 'text' && !fileUrl) {
-        toast.error('Silakan upload file atau masukkan URL')
+      if (form.material_type !== 'text' && mediaFiles.length === 0) {
+        toast.error('Tambahkan minimal 1 file media')
         setLoading(false)
         return
       }
 
+      // Use first media file as legacy file_url for backward compatibility
+      const legacyFileUrl = form.material_type !== 'text' && mediaFiles.length > 0
+        ? mediaFiles[0].url
+        : null
+
       const materialData = {
-        ...form,
-        file_url: form.material_type !== 'text' ? fileUrl : null
+        title: form.title,
+        description: form.description,
+        material_type: form.material_type,
+        content: form.content,
+        material_order: form.material_order,
+        file_url: legacyFileUrl,
+        media_files: mediaFiles
       }
 
       if (material) {
@@ -849,7 +763,10 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
           .update(materialData)
           .eq('id', material.id)
 
-        if (error) throw error
+        if (error) {
+          console.error('Material update error:', error)
+          throw error
+        }
         toast.success('Materi berhasil diupdate')
       } else {
         const { error } = await supabase
@@ -860,7 +777,10 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
             created_by: user.id
           }])
 
-        if (error) throw error
+        if (error) {
+          console.error('Material insert error:', error)
+          throw error
+        }
         toast.success('Materi berhasil ditambahkan')
       }
 
@@ -932,11 +852,10 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
                   key={type.value}
                   type="button"
                   onClick={() => setForm({ ...form, material_type: type.value })}
-                  className={`p-3 rounded-lg border-2 text-center transition ${
-                    form.material_type === type.value
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-green-300'
-                  }`}
+                  className={`p-3 rounded-lg border-2 text-center transition ${form.material_type === type.value
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-green-300'
+                    }`}
                 >
                   <div className="text-2xl mb-1">{type.icon}</div>
                   <div className="text-xs font-medium text-gray-700">{type.label}</div>
@@ -946,82 +865,21 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
           </div>
 
           {form.material_type !== 'text' ? (
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
-                File Materi <span className="text-red-500">*</span>
-              </label>
-              
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setUploadMethod('upload')}
-                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition ${
-                    uploadMethod === 'upload'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  📤 Upload File
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUploadMethod('url')}
-                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition ${
-                    uploadMethod === 'url'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  🔗 URL Eksternal
-                </button>
-              </div>
-
-              {uploadMethod === 'upload' ? (
-                <div>
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept={
-                      form.material_type === 'pdf' ? '.pdf' :
-                      form.material_type === 'video' ? 'video/*' :
-                      form.material_type === 'audio' ? 'audio/*' :
-                      form.material_type === 'image' ? 'image/*' : '*'
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black"
-                  />
-                  {selectedFile && (
-                    <p className="text-sm text-green-600 mt-2">
-                      ✓ File dipilih: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                    </p>
-                  )}
-                  {uploading && (
-                    <p className="text-sm text-blue-600 mt-2">
-                      ⏳ Mengupload file...
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <input
-                    type="url"
-                    value={form.file_url}
-                    onChange={(e) => setForm({ ...form, file_url: e.target.value })}
-                    placeholder="https://... atau https://youtube.com/..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Gunakan URL eksternal (Google Drive, YouTube, dll)
-                  </p>
-                </div>
-              )}
-
-              {form.file_url && form.material_type === 'video' && (
-                <div className="mt-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Preview Video:</label>
-                  <VideoPreview url={form.file_url} />
-                </div>
-              )}
-            </div>
+            <MultiMediaManager
+              mediaFiles={mediaFiles}
+              onChange={setMediaFiles}
+              maxFiles={10}
+              bucket="materials"
+              folder="lesson-materials"
+              label={`File Materi (${form.material_type})`}
+              acceptTypes={
+                form.material_type === 'pdf' ? '.pdf' :
+                  form.material_type === 'video' ? 'video/*' :
+                    form.material_type === 'audio' ? 'audio/*' :
+                      form.material_type === 'image' ? 'image/*' :
+                        'image/*,audio/*,video/*,.pdf'
+              }
+            />
           ) : (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1038,6 +896,19 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
             </div>
           )}
 
+          {/* Optional: additional media for text type too */}
+          {form.material_type === 'text' && (
+            <MultiMediaManager
+              mediaFiles={mediaFiles}
+              onChange={setMediaFiles}
+              maxFiles={10}
+              bucket="materials"
+              folder="lesson-materials"
+              label="Media Pendukung (Opsional)"
+              acceptTypes="image/*,audio/*,video/*,.pdf"
+            />
+          )}
+
           <div className="flex gap-3 pt-4">
             <button
               type="button"
@@ -1050,7 +921,7 @@ function MaterialModal({ lessonId, material, materialsCount, onClose, onSuccess 
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition disabled:opacity-50"
-              disabled={loading || uploading}
+              disabled={loading}
             >
               {loading ? 'Menyimpan...' : material ? 'Update' : 'Tambah Materi'}
             </button>
@@ -1075,7 +946,7 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
     poin_per_soal: 10,
     difficulty: 'easy',
     min_score_to_pass: 60,
-    max_attempts: 3,
+    max_attempts: 0,
     time_limit_minutes: null,
     is_published: false
   })
@@ -1094,7 +965,7 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
         poin_per_soal: quest.poin_per_soal || 10,
         difficulty: quest.difficulty || 'easy',
         min_score_to_pass: quest.min_score_to_pass || 60,
-        max_attempts: quest.max_attempts || 3,
+        max_attempts: quest.max_attempts ?? 0,
         time_limit_minutes: quest.time_limit_minutes || null,
         is_published: quest.is_published || false
       })
@@ -1114,12 +985,12 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!form.material_id) {
       toast.error('Pilih materi untuk quest ini!')
       return
     }
-    
+
     setLoading(true)
 
     try {
@@ -1149,7 +1020,7 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
           .single()
 
         if (error) throw error
-        
+
         toast.success('Quest berhasil dibuat!')
         navigate(`/teacher/quest-builder/quest/${newQuest.id}/questions`)
       }
@@ -1188,11 +1059,10 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
               {materials.map((material) => (
                 <label
                   key={material.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition ${
-                    form.material_id === material.id
-                      ? 'bg-green-50 border-2 border-green-500'
-                      : 'bg-gray-50 border-2 border-transparent hover:border-gray-300'
-                  }`}
+                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition ${form.material_id === material.id
+                    ? 'bg-green-50 border-2 border-green-500'
+                    : 'bg-gray-50 border-2 border-transparent hover:border-gray-300'
+                    }`}
                 >
                   <input
                     type="radio"
@@ -1320,14 +1190,32 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Max Attempts</label>
-              <input
-                type="number"
-                min="1"
-                value={form.max_attempts}
-                onChange={(e) => setForm({ ...form, max_attempts: parseInt(e.target.value) || 1 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-black"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Max. Percobaan</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.max_attempts === 0}
+                    onChange={(e) => setForm({ ...form, max_attempts: e.target.checked ? 0 : 3 })}
+                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-600">Tidak dibatasi (unlimited)</span>
+                </label>
+                {form.max_attempts !== 0 && (
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.max_attempts}
+                    onChange={(e) => setForm({ ...form, max_attempts: parseInt(e.target.value) || 1 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-black"
+                  />
+                )}
+                <p className="text-xs text-gray-500">
+                  {form.max_attempts === 0
+                    ? 'Siswa bisa mengulang quest terus-menerus. Nilai terbaik yang diambil.'
+                    : `Siswa bisa mengerjakan maksimal ${form.max_attempts}x. Nilai terbaik yang diambil.`}
+                </p>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Batas Waktu (menit)</label>

@@ -22,6 +22,20 @@ function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
+
+    try {
+      const { data: { session: existingSession } } = await supabase.auth.getSession()
+      if (existingSession?.user?.email && existingSession.user.email !== email) {
+        await supabase.auth.signOut()
+        try {
+          localStorage.removeItem('parlio_active_user_id')
+        } catch {
+          // ignore storage errors
+        }
+      }
+    } catch (sessionError) {
+      console.warn('Failed checking existing session:', sessionError)
+    }
     
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -45,6 +59,12 @@ function LoginPage() {
       setError('Failed to fetch user role')
       setLoading(false)
       return
+    }
+
+    try {
+      localStorage.setItem('parlio_active_user_id', data.user.id)
+    } catch {
+      // ignore storage errors
     }
     
     // Redirect based on role

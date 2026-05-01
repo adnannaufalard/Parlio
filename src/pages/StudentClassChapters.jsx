@@ -20,6 +20,8 @@ function StudentClassChapters() {
   const [leaderboardData, setLeaderboardData] = useState([])
   const [newComment, setNewComment] = useState('')
   const [postingComment, setPostingComment] = useState(false)
+  const [collapsedChapterIds, setCollapsedChapterIds] = useState([])
+  const [selectedLessonId, setSelectedLessonId] = useState(null)
 
   useEffect(() => {
     if (classId) {
@@ -106,12 +108,53 @@ function StudentClassChapters() {
         return
       }
 
-      // Get student progress for each chapter
+      const chapterIds = (assignedChapters || []).map(ac => ac.chapter?.id).filter(Boolean)
+
+      const { data: lessonsData } = await supabase
+        .from('lessons')
+        .select('id, title, description, order_number, chapter_id')
+        .in('chapter_id', chapterIds)
+
+      const lessonsByChapter = {}
+      ;(lessonsData || []).forEach((lesson) => {
+        if (!lessonsByChapter[lesson.chapter_id]) {
+          lessonsByChapter[lesson.chapter_id] = []
+        }
+        lessonsByChapter[lesson.chapter_id].push(lesson)
+      })
+
+      const allLessonIds = (lessonsData || []).map(l => l.id)
+
+      const { data: questsData } = allLessonIds.length > 0
+        ? await supabase
+          .from('quests')
+          .select('id, lesson_id')
+          .in('lesson_id', allLessonIds)
+        : { data: [] }
+
+      const questIds = (questsData || []).map(q => q.id)
+      const { data: attemptsData } = questIds.length > 0
+        ? await supabase
+          .from('student_quest_attempts')
+          .select('quest_id')
+          .eq('student_id', user.id)
+          .eq('passed', true)
+          .in('quest_id', questIds)
+        : { data: [] }
+
+      const passedQuestIds = new Set((attemptsData || []).map(a => a.quest_id))
+      const questIdsByLesson = {}
+      ;(questsData || []).forEach((quest) => {
+        if (!questIdsByLesson[quest.lesson_id]) {
+          questIdsByLesson[quest.lesson_id] = []
+        }
+        questIdsByLesson[quest.lesson_id].push(quest.id)
+      })
+
       const chaptersWithProgress = await Promise.all(
         (assignedChapters || []).map(async (ac) => {
           const chapter = ac.chapter
-          
-          // Get chapter progress (with error handling for missing table)
+
           let progress = { is_unlocked: false, is_completed: false }
           try {
             const { data: progressData } = await supabase
@@ -120,7 +163,7 @@ function StudentClassChapters() {
               .eq('student_id', user.id)
               .eq('chapter_id', chapter.id)
               .maybeSingle()
-            
+
             if (progressData) {
               progress = progressData
             }
@@ -128,45 +171,44 @@ function StudentClassChapters() {
             console.warn('Progress table not ready:', err)
           }
 
-          // Get lessons count
-          const { count: lessonsCount } = await supabase
-            .from('lessons')
-            .select('id', { count: 'exact', head: true })
-            .eq('chapter_id', chapter.id)
-
-          // Get completed lessons count (with error handling)
-          let completedCount = 0
-          try {
-            const { data: lessonIds } = await supabase
-              .from('lessons')
-              .select('id')
-              .eq('chapter_id', chapter.id)
-
-            if (lessonIds && lessonIds.length > 0) {
-              const { count } = await supabase
-                .from('student_lesson_progress')
-                .select('id', { count: 'exact', head: true })
-                .eq('student_id', user.id)
-                .eq('is_completed', true)
-                .in('lesson_id', lessonIds.map(l => l.id))
-              
-              completedCount = count || 0
+          const chapterLessons = (lessonsByChapter[chapter.id] || []).sort((a, b) => {
+            if (a.order_number !== undefined && b.order_number !== undefined) {
+              return a.order_number - b.order_number
             }
-          } catch (err) {
-            console.warn('Lesson progress not ready:', err)
-          }
+            return a.id - b.id
+          })
+
+          const lessonsWithProgress = chapterLessons.map((lesson) => {
+            const lessonQuestIds = questIdsByLesson[lesson.id] || []
+            const isCompleted = lessonQuestIds.length > 0
+              ? lessonQuestIds.every((questId) => passedQuestIds.has(questId))
+              : false
+
+            return {
+              ...lesson,
+              questCount: lessonQuestIds.length,
+              isCompleted
+            }
+          })
+
+          const totalLessons = lessonsWithProgress.length
+          const completedCount = lessonsWithProgress.filter(l => l.isCompleted).length
+          const isCompleted = totalLessons > 0 && completedCount === totalLessons
 
           return {
             ...chapter,
             progress,
-            totalLessons: lessonsCount || 0,
-            completedLessons: completedCount || 0,
-            percentage: lessonsCount > 0 ? Math.round((completedCount / lessonsCount) * 100) : 0
+            lessons: lessonsWithProgress,
+            totalLessons,
+            completedLessons: completedCount,
+            percentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
+            isCompleted
           }
         })
       )
 
-      setChapters(chaptersWithProgress)
+      const sortedChapters = chaptersWithProgress.sort((a, b) => a.floor_number - b.floor_number)
+      setChapters(sortedChapters)
       setLoading(false)
     } catch (error) {
       console.error('Error fetching class chapters:', error)
@@ -417,6 +459,42 @@ function StudentClassChapters() {
     }
   }
 
+  const getNodeStyles = (status) => {
+    if (status === 'completed') {
+      return {
+        circle: 'bg-emerald-500 border-emerald-500 text-white',
+        line: 'bg-emerald-400',
+        badge: 'bg-emerald-100 text-emerald-700'
+      }
+    }
+
+    if (status === 'locked') {
+      return {
+        circle: 'bg-gray-200 border-gray-300 text-gray-500',
+        line: 'bg-gray-300',
+        badge: 'bg-gray-100 text-gray-600'
+      }
+    }
+
+    return {
+      circle: 'bg-blue-500 border-blue-500 text-white',
+      line: 'bg-blue-400',
+      badge: 'bg-blue-100 text-blue-700'
+    }
+  }
+
+  const toggleChapterInfo = (chapterId) => {
+    setCollapsedChapterIds((prev) => (
+      prev.includes(chapterId)
+        ? prev.filter((id) => id !== chapterId)
+        : [...prev, chapterId]
+    ))
+  }
+
+  const toggleLessonInfo = (lessonId) => {
+    setSelectedLessonId((prev) => (prev === lessonId ? null : lessonId))
+  }
+
   if (loading) {
     return (
       <StudentLayout showHeader={false}>
@@ -439,148 +517,205 @@ function StudentClassChapters() {
   return (
     <StudentLayout showClassNav={true} activeClassTab={activeTab} onClassTabChange={setActiveTab}>
       {/* Header Section - Dark Blue Background */}
-      <div className="bg-[#1E258F] rounded-2xl shadow-lg mb-6 overflow-hidden">
-        <div className="p-6">
-          <button
-            onClick={() => navigate('/student/chapters')}
-            className="flex items-center gap-2 text-white/80 hover:text-white mb-4 transition-colors bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg font-['Poppins']"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="text-sm font-medium">Kembali ke Daftar Kelas</span>
-          </button>
-          
-          <h1 className="text-2xl font-bold text-white mb-2 font-['Poppins']">{classData?.class_name}</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-white/70 font-['Poppins']">Kode Kelas:</span>
-            <span className="bg-white/20 text-white font-mono font-semibold px-3 py-1 rounded-lg text-sm">{classData?.class_code}</span>
+      <div className="relative bg-[#1E258F] rounded-2xl shadow-lg mb-6 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="aurora-orb aurora-orb-1" />
+          <div className="aurora-orb aurora-orb-2" />
+          <div className="aurora-orb aurora-orb-3" />
+          <div className="aurora-ribbon aurora-ribbon-1" />
+          <div className="aurora-ribbon aurora-ribbon-2" />
+          <div className="aurora-stars" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_55%)]" />
+        </div>
+        <div className="relative z-10 p-6 sm:p-7 min-h-[170px] sm:min-h-[190px]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <button
+              onClick={() => navigate('/student/chapters')}
+              className="flex items-center gap-2 text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg font-['Poppins']"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="text-sm font-medium">Kembali ke Daftar Kelas</span>
+            </button>
+
+            <div className="text-left sm:text-right">
+              <h1 className="text-3xl sm:text-5xl font-bold text-white mb-2 font-['Poppins']">
+                {classData?.class_name}
+              </h1>
+              <div className="flex items-center gap-2 justify-start sm:justify-end">
+                <span className="text-sm text-white/70 font-['Poppins']">Kode Kelas:</span>
+                <span className="bg-white/20 text-white font-mono font-semibold px-3 py-1 rounded-lg text-sm">
+                  {classData?.class_code}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Tab Content */}
       {activeTab === 'pelajaran' && (
-        <div className="space-y-4">
-          <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
-            <span></span> Daftar Pelajaran
-          </h3>
-        
-          {chapters.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
-              <div className="w-48 h-48 mx-auto mb-2">
-                <DotLottieReact
-                  src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
-                  loop
-                  autoplay
-                />
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-slate-50 via-white to-sky-50/70 p-4 sm:p-6">
+          <div className="absolute inset-0 lesson-sky pointer-events-none">
+            <div className="lesson-sky-layer lesson-sky-layer-1" />
+            <div className="lesson-sky-layer lesson-sky-layer-2" />
+            <div className="lesson-sky-layer lesson-sky-layer-3" />
+            <div className="lesson-meteor lesson-meteor-1" />
+            <div className="lesson-meteor lesson-meteor-2" />
+            <div className="lesson-meteor lesson-meteor-3" />
+          </div>
+          <div className="relative z-10 space-y-4">
+            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
+              <span></span> Daftar Pelajaran
+            </h3>
+          
+            {chapters.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
+                <div className="w-48 h-48 mx-auto mb-2">
+                  <DotLottieReact
+                    src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                    loop
+                    autoplay
+                  />
+                </div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2 font-['Poppins']">Belum ada pelajaran</h3>
+                <p className="text-sm text-gray-500 font-['Poppins']">Guru belum menambahkan pelajaran ke kelas ini</p>
               </div>
-              <h3 className="text-base font-semibold text-gray-800 mb-2 font-['Poppins']">Belum ada pelajaran</h3>
-              <p className="text-sm text-gray-500 font-['Poppins']">Guru belum menambahkan pelajaran ke kelas ini</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {chapters.map((chapter, index) => {
-                const isLocked = !chapter.progress?.is_unlocked && chapter.floor_number > 1
-                const isCompleted = chapter.progress?.is_completed
-                
-                return (
-                  <div 
-                    key={chapter.id}
-                    className={`bg-white rounded-xl shadow-sm hover:shadow-md overflow-hidden transition-all duration-200 border ${
-                      isLocked ? 'opacity-70 cursor-not-allowed border-gray-200' : 'hover:border-blue-300 cursor-pointer border-gray-100'
-                    } ${isCompleted ? 'border-green-200' : ''}`}
-                    onClick={() => !isLocked && handleChapterClick(chapter)}
-                  >
-                    <div className="p-5">
-                      <div className="flex items-start gap-4">
-      
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            {isCompleted && (
-                              <span className="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1 font-['Poppins']">
-                                <span>✓</span> Selesai
-                              </span>
-                            )}
-                            {isLocked && (
-                              <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1 font-['Poppins']">
-                                🔒 Terkunci
-                              </span>
-                            )}
-                          </div>
-                          
-                          <h3 className="text-lg font-semibold text-gray-800 mb-2 leading-tight font-['Poppins']">
-                            {chapter.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-3 line-clamp-2 leading-relaxed font-['Poppins']">
-                            {chapter.description}
-                          </p>
+            ) : (
+              <div className="relative space-y-10 py-2">
+                <div className="absolute left-[15px] sm:left-[19px] top-6 bottom-6 w-px bg-gray-200 z-0" />
+                {chapters.map((chapter, chapterIndex) => {
+                  const previousChapter = chapterIndex > 0 ? chapters[chapterIndex - 1] : null
+                  const isChapterLocked = chapterIndex > 0 && !previousChapter?.isCompleted
+                  const chapterStatus = chapter.isCompleted ? 'completed' : isChapterLocked ? 'locked' : 'current'
+                  const lessons = chapter.lessons || []
 
-                          {/* Stats */}
-                          <div className="flex items-center gap-4 mb-3">
-                            <div className="flex items-center gap-1.5 text-sm text-gray-700 font-['Poppins']">
-                              <span>📖</span>
-                              <span className="font-medium">{chapter.totalLessons}</span>
-                              <span className="text-xs text-gray-500">Sub Bab</span>
-                            </div>
-                            {chapter.completedLessons > 0 && (
-                              <div className="flex items-center gap-1.5 text-sm text-green-600 font-['Poppins']">
-                                <span>✅</span>
-                                <span className="font-medium">{chapter.completedLessons}</span>
-                                <span className="text-xs">Selesai</span>
-                              </div>
-                            )}
+                  return (
+                    <div key={chapter.id} className="relative z-10 flex gap-6 sm:gap-8">
+                      {/* Timeline Node */}
+                      <div className="flex-shrink-0 mt-1">
+                        {chapterStatus === 'completed' ? (
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#10b981] text-white flex items-center justify-center shadow-sm relative z-10">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
                           </div>
-
-                          {/* Progress Bar */}
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-medium text-gray-500 font-['Poppins']">
-                                Progress
-                              </span>
-                              <span className="text-sm font-semibold text-gray-700 font-['Poppins']">
-                                {chapter.percentage}%
-                              </span>
-                            </div>
-                            <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full transition-all duration-700 ease-out ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
-                                style={{ width: `${chapter.percentage}%` }}
-                              />
-                            </div>
+                        ) : chapterStatus === 'locked' ? (
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 border border-gray-200 text-gray-400 flex items-center justify-center shadow-sm relative z-10">
+                            <svg className="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
                           </div>
-                        </div>
-
-                        {/* Arrow icon for non-locked chapters */}
-                        {!isLocked && (
-                          <svg className="w-5 h-5 text-gray-400 hover:text-blue-500 flex-shrink-0 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                        ) : (
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#4f46e5]/20 flex items-center justify-center relative z-10">
+                            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#4f46e5] shadow-sm shadow-indigo-200"></div>
+                          </div>
                         )}
                       </div>
-                    </div>
 
-                    {/* Bottom footer */}
-                    <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                      {isLocked ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">⚡</span>
-                          <p className="text-xs font-medium text-gray-600 font-['Poppins']">
-                            Butuh {chapter.unlock_xp_required || 0} XP untuk membuka
-                          </p>
+                      {/* Content Area */}
+                      <div className="flex-1 min-w-0 pt-0.5 sm:pt-1">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] sm:text-xs font-semibold tracking-wider text-gray-400 uppercase font-['Poppins']">
+                            BAB {String(chapterIndex + 1).padStart(2, '0')}
+                          </span>
+                          <span className={`text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md font-['Poppins'] uppercase ${
+                            chapterStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                            chapterStatus === 'locked' ? 'bg-gray-100 text-gray-500' :
+                            'bg-indigo-100 text-[#4f46e5]'
+                          }`}>
+                            {chapterStatus === 'completed' ? 'COMPLETED' : chapterStatus === 'locked' ? 'PENDING' : 'IN PROGRESS'}
+                          </span>
                         </div>
-                      ) : (
-                        <div className="text-xs text-gray-500 font-['Poppins']">
-                          {isCompleted ? '✅ Pelajaran selesai' : '👉 Klik untuk melihat sub bab'}
+
+                        <h2 className={`text-base sm:text-lg font-semibold mb-1 font-['Poppins'] ${chapterStatus === 'locked' ? 'text-gray-400' : 'text-gray-900'}`}>
+                          {chapter.title}
+                        </h2>
+                        
+                        <p className={`text-xs sm:text-sm mb-3 font-['Poppins'] ${chapterStatus === 'locked' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {chapter.description}
+                        </p>
+
+                        {/* Progress Bar */}
+                        <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1.5 font-['Poppins']">
+                          <span>{chapter.completedLessons} / {chapter.totalLessons} Sub Bab</span>
+                          <span>{chapter.percentage}%</span>
                         </div>
-                      )}
+                        <div className="bg-gray-200 rounded-full h-1.5 overflow-hidden mb-4">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ease-out ${chapterStatus === 'completed' ? 'bg-[#10b981]' : chapterStatus === 'locked' ? 'bg-gray-300' : 'bg-[#4f46e5]'}`}
+                            style={{ width: `${chapter.percentage}%` }}
+                          />
+                        </div>
+
+                        {/* Lessons Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
+                          {lessons.map((lesson, lessonIndex) => {
+                            const previousLesson = lessonIndex > 0 ? lessons[lessonIndex - 1] : null
+                            const isLessonLocked = isChapterLocked || (lessonIndex > 0 && !previousLesson?.isCompleted)
+                            const lessonStatus = lesson.isCompleted ? 'completed' : isLessonLocked ? 'locked' : 'current'
+
+                            return (
+                              <button
+                                key={lesson.id}
+                                disabled={isLessonLocked}
+                                onClick={() => navigate(`/student/lesson/${lesson.id}`, {
+                                  state: { classId: classId, chapterId: chapter.id }
+                                })}
+                                className={`text-left flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all ${
+                                  lessonStatus === 'completed' ? 'bg-white border-gray-200 hover:border-green-300 hover:shadow-sm' :
+                                  lessonStatus === 'current' ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' :
+                                  'bg-white border-gray-100 opacity-60 cursor-not-allowed'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  {/* Icon */}
+                                  <div className="flex-shrink-0">
+                                    {lessonStatus === 'completed' ? (
+                                      <div className="w-5 h-5 rounded-full border border-emerald-500 flex items-center justify-center text-emerald-500">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      </div>
+                                    ) : lessonStatus === 'locked' ? (
+                                      <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                      </svg>
+                                    ) : (
+                                      <div className="w-5 h-5 rounded-full flex items-center justify-center border border-[#4f46e5]">
+                                        <div className="w-2 h-2 rounded-full bg-[#4f46e5]"></div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <span className={`font-semibold text-xs sm:text-sm font-['Poppins'] truncate ${
+                                    lessonStatus === 'current' ? 'text-[#4f46e5]' :
+                                    lessonStatus === 'locked' ? 'text-gray-400' :
+                                    'text-gray-800'
+                                  }`}>
+                                    {lesson.title}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex-shrink-0 ml-3">
+                                  {lessonStatus === 'current' ? (
+                                    <span className="text-[10px] font-semibold text-[#4f46e5] font-['Poppins'] uppercase">Mulai</span>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400 font-['Poppins']">{lesson.questCount > 0 ? `${lesson.questCount} Quest` : ''}</span>
+                                  )}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -588,7 +723,6 @@ function StudentClassChapters() {
       {activeTab === 'announcements' && (
         <div className="space-y-3">
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
-            <span className="text-xl">📢</span> 
             <span>Pengumuman Kelas</span>
           </h3>
           
@@ -650,7 +784,6 @@ function StudentClassChapters() {
       {activeTab === 'members' && (
         <div className="space-y-3">
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
-            <span className="text-xl">👥</span> 
             <span>Anggota Kelas ({members.length})</span>
           </h3>
           
@@ -699,7 +832,6 @@ function StudentClassChapters() {
       {activeTab === 'leaderboard' && (
         <div className="space-y-3">
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
-            <span className="text-xl">🏆</span> 
             <span>Leaderboard Kelas</span>
           </h3>
           
@@ -737,7 +869,7 @@ function StudentClassChapters() {
                   >
                     <div className="flex items-center gap-3">
                       {/* Rank */}
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg ${
                         isTop3 ? 'bg-white shadow-sm' : 'bg-gray-100 text-gray-600'
                       }`}>
                         {isTop3 ? medals[index] : index + 1}
@@ -780,7 +912,6 @@ function StudentClassChapters() {
       {activeTab === 'forum' && (
         <div className="space-y-4">
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
-            <span className="text-xl">💬</span> 
             <span>Forum Diskusi Kelas</span>
           </h3>
 

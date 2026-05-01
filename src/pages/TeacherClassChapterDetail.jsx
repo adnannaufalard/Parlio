@@ -63,7 +63,7 @@ function TeacherClassChapterDetail() {
         .select(`
           *,
           materials:lesson_materials(id, title, material_type, file_url, description),
-          quests:quests(id, title, xp_reward, coins_reward, min_points, max_attempts)
+          quests:quests(id, title, xp_reward, coins_reward, min_points, min_score_to_pass, max_attempts)
         `)
         .eq('chapter_id', chapterId)
         .order('lesson_order', { ascending: true })
@@ -114,7 +114,7 @@ function TeacherClassChapterDetail() {
       // Get quests for this lesson
       const { data: quests, error: questsError } = await supabase
         .from('quests')
-        .select('id, title, xp_reward, coins_reward, min_points, max_attempts')
+        .select('id, title, xp_reward, coins_reward, min_points, min_score_to_pass, max_attempts')
         .eq('lesson_id', lessonId)
         .order('created_at', { ascending: true })
 
@@ -199,7 +199,8 @@ function TeacherClassChapterDetail() {
               passed: bestAttempt.passed,
               attempts: studentAttempts.length,
               maxAttempts: quest.max_attempts,
-              minPoints: quest.min_points
+              minPoints: quest.min_points,
+              minScoreToPass: quest.min_score_to_pass
             }
           } else {
             bestScoresMap[studentId].quests[quest.id] = {
@@ -744,9 +745,7 @@ function TeacherClassChapterDetail() {
                                     <div>
                                       <h4 className="font-bold text-gray-800">{quest.title}</h4>
                                       <div className="flex gap-3 text-xs text-gray-600 mt-1">
-                                        <span>⭐ {quest.xp_reward} XP</span>
-                                        <span>🪙 {quest.coins_reward} Coins</span>
-                                        <span>📊 Min: {quest.min_points} poin</span>
+                                        <span>📊 Min Nilai Lulus: {quest.min_score_to_pass || quest.min_points || 60}%</span>
                                       </div>
                                     </div>
                                   </div>

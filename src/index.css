@@ -80,4 +80,250 @@
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
   }
+
+  .map-connector {
+    position: relative;
+    width: 140px;
+    height: 24px;
+    border-top: 2px dashed #cbd5f5;
+  }
+
+  .map-connector::after {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #3b82f6;
+    animation: map-dash 2.6s linear infinite;
+  }
+
+  .map-connector-locked {
+    border-top-color: #d1d5db;
+  }
+
+  .map-connector-locked::after {
+    background: #9ca3af;
+  }
+
+  .aurora-orb {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(26px);
+    opacity: 0.35;
+    mix-blend-mode: screen;
+    animation: aurora-float 4.5s ease-in-out infinite;
+  }
+
+  .aurora-orb-1 {
+    top: -40px;
+    right: -20px;
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle, rgba(34,211,238,0.7), rgba(59,130,246,0.25), transparent 70%);
+    animation-duration: 5s;
+  }
+
+  .aurora-orb-2 {
+    top: 20px;
+    left: 10px;
+    width: 170px;
+    height: 170px;
+    background: radial-gradient(circle, rgba(16,185,129,0.7), rgba(34,197,94,0.22), transparent 70%);
+    animation-duration: 6s;
+    animation-delay: -1s;
+  }
+
+  .aurora-orb-3 {
+    bottom: -50px;
+    left: 45%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(59,130,246,0.65), rgba(16,185,129,0.22), transparent 70%);
+    animation-duration: 6.5s;
+    animation-delay: -2.5s;
+  }
+
+  .aurora-ribbon {
+    position: absolute;
+    width: 120%;
+    height: 80px;
+    left: -20%;
+    border-radius: 999px;
+    filter: blur(22px);
+    opacity: 0.35;
+    mix-blend-mode: screen;
+    animation: aurora-ribbon 5s ease-in-out infinite;
+  }
+
+  .aurora-ribbon-1 {
+    top: 14px;
+    background: linear-gradient(90deg, rgba(59,130,246,0.55), rgba(34,211,238,0.5), rgba(16,185,129,0.45));
+    transform: rotate(-6deg);
+    animation-delay: -1s;
+  }
+
+  .aurora-ribbon-2 {
+    bottom: 10px;
+    background: linear-gradient(90deg, rgba(16,185,129,0.55), rgba(34,197,94,0.45), rgba(59,130,246,0.5));
+    transform: rotate(8deg);
+    animation-delay: -2.5s;
+  }
+
+  .aurora-stars {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,0.55) 1px, transparent 1.5px),
+      radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1.5px),
+      radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1.5px);
+    background-size: 120px 120px, 180px 180px, 240px 240px;
+    background-position: 0 0, 40px 30px, 80px 70px;
+    opacity: 0.75;
+    animation: star-drift 16s linear infinite;
+  }
+
+  .lesson-sky {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .lesson-sky-layer {
+    position: absolute;
+    inset: -10%;
+    background-image:
+      radial-gradient(circle, rgba(59,130,246,0.7) 1px, transparent 1.6px),
+      radial-gradient(circle, rgba(16,185,129,0.55) 1px, transparent 1.8px);
+    background-size: 90px 90px, 140px 140px;
+    background-position: 0 0, 40px 60px;
+    opacity: 0.7;
+    animation: sky-drift 24s linear infinite;
+  }
+
+  .lesson-sky-layer-2 {
+    background-size: 120px 120px, 200px 200px;
+    background-position: 20px 30px, 80px 110px;
+    opacity: 0.5;
+    animation-duration: 32s;
+    animation-direction: reverse;
+  }
+
+  .lesson-sky-layer-3 {
+    background-size: 160px 160px, 260px 260px;
+    background-position: 10px 70px, 120px 40px;
+    opacity: 0.35;
+    animation-duration: 40s;
+  }
+
+  .lesson-meteor {
+    position: absolute;
+    height: 2px;
+    width: 160px;
+    background: linear-gradient(90deg, rgba(59,130,246,0), rgba(59,130,246,0.9), rgba(16,185,129,0.75));
+    opacity: 0;
+    filter: drop-shadow(0 0 6px rgba(59,130,246,0.5));
+    animation: meteor-fly 10s ease-in-out infinite;
+  }
+
+  .lesson-meteor-1 {
+    top: 18%;
+    left: -35%;
+    animation-delay: 2s;
+  }
+
+  .lesson-meteor-2 {
+    top: 52%;
+    left: -45%;
+    animation-delay: 6s;
+    animation-duration: 12s;
+  }
+
+  .lesson-meteor-3 {
+    top: 76%;
+    left: -50%;
+    animation-delay: 10s;
+    animation-duration: 14s;
+  }
+}
+
+@keyframes map-dash {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(130px);
+  }
+}
+
+@keyframes aurora-float {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate3d(30px, -22px, 0) rotate(12deg) scale(1.12);
+  }
+  50% {
+    transform: translate3d(-26px, 24px, 0) rotate(-14deg) scale(0.95);
+  }
+  75% {
+    transform: translate3d(24px, 16px, 0) rotate(16deg) scale(1.08);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes aurora-ribbon {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(-6deg) scale(1);
+  }
+  50% {
+    transform: translate3d(28px, -10px, 0) rotate(4deg) scale(1.05);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-6deg) scale(1);
+  }
+}
+
+@keyframes star-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-80px, 60px, 0);
+  }
+}
+
+@keyframes sky-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-120px, 80px, 0);
+  }
+}
+
+@keyframes meteor-fly {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(24deg);
+  }
+  70% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(24deg);
+  }
+  75% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0;
+    transform: translate3d(160vw, 120px, 0) rotate(24deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(160vw, 120px, 0) rotate(24deg);
+  }
 }

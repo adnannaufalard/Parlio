@@ -20,6 +20,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import Logo1 from '../assets/logo/1.png'
 import { 
   LayoutDashboard, 
   GraduationCap, 
@@ -35,7 +36,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  MessageSquare
 } from 'lucide-react'
 
 /**
@@ -51,7 +53,7 @@ function Icon({ name, className = "h-6 w-6" }) {
     profile: <User className={className} />,
     announcement: <Megaphone className={className} />,
     members: <Users className={className} />,
-    forum: <MessageCircle className={className} />,
+    forum: <MessageSquare className={className} />,
     xp: <Zap className={className} />,
     coin: <Coins className={className} />,
     logout: <LogOut className={className} />,
@@ -82,7 +84,13 @@ export default function StudentLayout({
 }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => {
+    try {
+      return localStorage.getItem('parlio_student_sidebar_expanded') === 'true'
+    } catch {
+      return false
+    }
+  })
   const [studentStats, setStudentStats] = useState(() => {
     // Try to get cached stats from sessionStorage for instant display
     const cached = sessionStorage.getItem('studentStats')
@@ -99,6 +107,14 @@ export default function StudentLayout({
   useEffect(() => {
     fetchStudentStats()
   }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('parlio_student_sidebar_expanded', String(sidebarExpanded))
+    } catch {
+      // ignore storage errors
+    }
+  }, [sidebarExpanded])
 
   /**
    * Fetch student stats from database with caching
@@ -151,6 +167,11 @@ export default function StudentLayout({
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut()
+      try {
+        localStorage.removeItem('parlio_active_user_id')
+      } catch {
+        // ignore storage errors
+      }
       toast.success('Berhasil logout')
       navigate('/login')
     } catch (error) {
@@ -244,7 +265,12 @@ export default function StudentLayout({
         >
           <div className="flex flex-col h-full bg-white border-r border-gray-200 shadow-sm">
             {/* Toggle Button */}
-            <div className="flex items-center justify-center p-4 border-b border-gray-100">
+            <div className={`flex items-center gap-2 border-b border-gray-100 ${sidebarExpanded ? 'p-4 justify-between' : 'px-2 py-3 justify-center'}`}>
+              {sidebarExpanded ? (
+                <img src={Logo1} alt="Parlio" className="h-8 object-contain" />
+              ) : (
+                <div />
+              )}
               <button
                 onClick={() => setSidebarExpanded(!sidebarExpanded)}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
@@ -448,7 +474,7 @@ export default function StudentLayout({
                     className={`
                       relative p-3.5 rounded-full transition-all duration-300
                       ${activeClassTab === item.value
-                        ? 'bg-[#4450FF] text-white shadow-lg shadow-blue-500/50 scale-110'
+                        ? 'bg-[#1E258F] text-white shadow-lg shadow-blue-500/50 scale-110'
                         : 'text-gray-600 hover:bg-white/80 hover:text-gray-800'
                       }
                     `}

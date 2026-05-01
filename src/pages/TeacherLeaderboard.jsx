@@ -326,6 +326,26 @@ function TeacherLeaderboard() {
 
       if (error) throw error
 
+      // Fetch attempts to calculate avg score
+      const { data: allAttempts } = await supabase
+        .from('student_quest_attempts')
+        .select('student_id, score, max_score')
+        .in('student_id', studentIds)
+
+      const scoreStatsByStudent = {}
+      ;(allAttempts || []).forEach(a => {
+        if (!scoreStatsByStudent[a.student_id]) {
+          scoreStatsByStudent[a.student_id] = { total: 0, max: 0 }
+        }
+        scoreStatsByStudent[a.student_id].total += a.score || 0
+        scoreStatsByStudent[a.student_id].max += a.max_score || 0
+      })
+
+      const getStudentAvgScore = (sId) => {
+        const stats = scoreStatsByStudent[sId] || { total: 0, max: 0 }
+        return stats.max > 0 ? Math.round((stats.total / stats.max) * 100) : 0
+      }
+
       let leaderboardData = []
 
       if (xpMode === 'global' || selectedClass === 'all') {
@@ -333,7 +353,8 @@ function TeacherLeaderboard() {
         leaderboardData = (students || [])
           .map((student, index) => ({
             ...student,
-            level: Math.floor((student.xp_points || 0) / 100) + 1
+            level: Math.floor((student.xp_points || 0) / 100) + 1,
+            avg_score: getStudentAvgScore(student.id)
           }))
           .sort((a, b) => (b.xp_points || 0) - (a.xp_points || 0))
           .map((student, index) => ({ ...student, rank: index + 1 }))
@@ -412,7 +433,8 @@ function TeacherLeaderboard() {
                 .map((student) => ({
                   ...student,
                   xp_points: xpByStudent[student.id] || 0,
-                  level: Math.floor((xpByStudent[student.id] || 0) / 100) + 1
+                  level: Math.floor((xpByStudent[student.id] || 0) / 100) + 1,
+                  avg_score: getStudentAvgScore(student.id)
                 }))
                 .sort((a, b) => b.xp_points - a.xp_points)
                 .map((student, index) => ({ ...student, rank: index + 1 }))
@@ -989,7 +1011,7 @@ function TeacherLeaderboard() {
 
         {/* Leaderboard Table */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="p-4 border-b bg-gray-50">
+          <div className="p-4 border-b bg-white">
             <h2 className="font-semibold text-gray-800">Daftar Peringkat</h2>
           </div>
 
@@ -1006,13 +1028,12 @@ function TeacherLeaderboard() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-white border-b">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Siswa</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Level</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Rata-rata Nilai</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">XP</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Coins</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1044,17 +1065,13 @@ function TeacherLeaderboard() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-semibold text-sm">
-                            Lv. {student.level}
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold text-sm">
+                            {student.avg_score || 0}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className="font-bold text-purple-600">{student.xp_points || 0}</span>
                           <span className="text-gray-400 ml-1">XP</span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="font-bold text-yellow-600">{student.coins || 0}</span>
-                          <span className="text-gray-400 ml-1">🪙</span>
                         </td>
                       </tr>
                     )

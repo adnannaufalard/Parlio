@@ -6,7 +6,9 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { MessageSquare, Send, Users, Trophy, BookOpen, Megaphone } from 'lucide-react'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart'
+import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts'
+import { MessageSquare, Send, Users, Trophy, BookOpen, Megaphone, BarChart3 } from 'lucide-react'
 
 const TeacherClassDetail = () => {
   const { id } = useParams()
@@ -18,6 +20,11 @@ const TeacherClassDetail = () => {
   const [chapters, setChapters] = useState([])
   const [announcements, setAnnouncements] = useState([])
   const [leaderboard, setLeaderboard] = useState([])
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [statsChartData, setStatsChartData] = useState([])
+  const [statsSeries, setStatsSeries] = useState([])
+  const [statsSummary, setStatsSummary] = useState([])
+  const [statsConfig, setStatsConfig] = useState({})
   const [forumPosts, setForumPosts] = useState([])
   const [newComment, setNewComment] = useState('')
   const [postingComment, setPostingComment] = useState(false)
@@ -40,6 +47,7 @@ const TeacherClassDetail = () => {
   useEffect(() => {
     if (activeTab === 'announcements') fetchAnnouncements()
     if (activeTab === 'leaderboard') fetchLeaderboard()
+    if (activeTab === 'statistics') fetchStatistics()
     if (activeTab === 'forum') {
       fetchForumPosts()
       setupForumRealtime()
@@ -286,6 +294,197 @@ const TeacherClassDetail = () => {
     }
   }
 
+  const fetchStatistics = async () => {
+    try {
+      setStatsLoading(true)
+
+      const { data: membersData, error: membersError } = await supabase
+        .from('class_members')
+        .select(`
+          student_id,
+          student:profiles!class_members_student_id_fkey (
+            id,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('class_id', id)
+
+      if (membersError || !membersData || membersData.length === 0) {
+        setStatsChartData([])
+        setStatsSeries([])
+        setStatsSummary([])
+        setStatsConfig({})
+        return
+      }
+
+      const { data: classChapters } = await supabase
+        .from('class_chapters')
+        .select('chapter_id')
+        .eq('class_id', id)
+        .eq('is_active', true)
+
+      if (!classChapters || classChapters.length === 0) {
+        setStatsChartData([])
+        setStatsSeries([])
+        setStatsSummary([])
+        setStatsConfig({})
+        return
+      }
+
+      const chapterIds = classChapters.map(c => c.chapter_id)
+
+      const { data: lessons } = await supabase
+        .from('lessons')
+        .select('id')
+        .in('chapter_id', chapterIds)
+
+      if (!lessons || lessons.length === 0) {
+        setStatsChartData([])
+        setStatsSeries([])
+        setStatsSummary([])
+        setStatsConfig({})
+        return
+      }
+
+      const lessonIds = lessons.map(l => l.id)
+
+      const { data: quests } = await supabase
+        .from('quests')
+        .select('id')
+        .in('lesson_id', lessonIds)
+
+      if (!quests || quests.length === 0) {
+        setStatsChartData([])
+        setStatsSeries([])
+        setStatsSummary([])
+        setStatsConfig({})
+        return
+      }
+
+      const questIds = quests.map(q => q.id)
+      const studentIds = membersData.map(m => m.student_id)
+
+      const { data: attempts } = await supabase
+        .from('student_quest_attempts')
+        .select('student_id, score, max_score, completed_at')
+        .in('quest_id', questIds)
+        .in('student_id', studentIds)
+        .order('completed_at', { ascending: true })
+
+      const palette = [
+        '#2563eb',
+        '#f97316',
+        '#10b981',
+        '#ef4444',
+        '#8b5cf6',
+        '#14b8a6',
+        '#f59e0b',
+        '#0ea5e9',
+        '#84cc16',
+        '#ec4899'
+      ]
+
+      const studentsInfo = membersData.map((m, index) => {
+        const dataKey = `student_${m.student_id.replace(/-/g, '')}`
+        return {
+          id: m.student_id,
+          name: m.student?.full_name || 'Siswa',
+          avatar_url: m.student?.avatar_url,
+          dataKey,
+          color: palette[index % palette.length]
+        }
+      })
+
+      const attemptsByStudent = {}
+      studentsInfo.forEach((student) => {
+        attemptsByStudent[student.id] = {
+          ...student,
+          attempts: [],
+          totalScore: 0,
+          totalMax: 0
+        }
+      })
+
+      ;(attempts || []).forEach((attempt) => {
+        const student = attemptsByStudent[attempt.student_id]
+        if (!student) return
+        const percent = attempt.max_score > 0
+          ? Math.round((attempt.score || 0) / attempt.max_score * 100)
+          : 0
+        student.attempts.push({
+          percent,
+          score: attempt.score || 0,
+          maxScore: attempt.max_score || 0
+        })
+        student.totalScore += attempt.score || 0
+        student.totalMax += attempt.max_score || 0
+      })
+
+      const maxAttempts = Math.max(
+        0,
+        ...Object.values(attemptsByStudent).map(student => student.attempts.length)
+      )
+
+      const chartData = Array.from({ length: maxAttempts }, (_, index) => ({
+        attempt: index + 1
+      }))
+
+      Object.values(attemptsByStudent).forEach((student) => {
+        student.attempts.forEach((attempt, index) => {
+          chartData[index][student.dataKey] = attempt.percent
+        })
+      })
+
+      chartData.forEach((point, index) => {
+        const values = Object.values(attemptsByStudent)
+          .map(student => student.attempts[index]?.percent)
+          .filter((value) => value !== undefined)
+        point.average = values.length > 0
+          ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+          : 0
+      })
+
+      const series = Object.values(attemptsByStudent).map((student) => {
+        const avgScore = student.totalMax > 0
+          ? Math.round((student.totalScore / student.totalMax) * 100)
+          : 0
+        return {
+          id: student.id,
+          name: student.name,
+          avatar_url: student.avatar_url,
+          dataKey: student.dataKey,
+          color: student.color,
+          avg_score: avgScore,
+          attempt_count: student.attempts.length
+        }
+      })
+
+      const config = {
+        average: {
+          label: 'Rata-rata Kelas',
+          color: '#0f172a'
+        }
+      }
+
+      series.forEach((item) => {
+        config[item.dataKey] = {
+          label: item.name,
+          color: item.color
+        }
+      })
+
+      setStatsChartData(chartData)
+      setStatsSeries(series)
+      setStatsSummary([...series].sort((a, b) => b.avg_score - a.avg_score))
+      setStatsConfig(config)
+    } catch (error) {
+      console.error('Error fetching statistics:', error)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
   const fetchForumPosts = async () => {
     try {
       const { data, error } = await supabase
@@ -475,6 +674,7 @@ const TeacherClassDetail = () => {
                 { key: 'chapters', label: 'Pelajaran', icon: <BookOpen className="h-4 w-4" /> },
                 { key: 'announcements', label: 'Pengumuman', icon: <Megaphone className="h-4 w-4" /> },
                 { key: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="h-4 w-4" /> },
+                { key: 'statistics', label: 'Statistik', icon: <BarChart3 className="h-4 w-4" /> },
                 { key: 'students', label: 'Siswa', icon: <Users className="h-4 w-4" /> },
                 { key: 'forum', label: 'Forum', icon: <MessageSquare className="h-4 w-4" /> }
               ].map(tab => (
@@ -805,7 +1005,7 @@ const TeacherClassDetail = () => {
                           </div>
                           <div className="text-2xl">🥈</div>
                           <p className="font-semibold text-gray-800 text-sm truncate max-w-[100px]">{leaderboard[1]?.full_name}</p>
-                          <p className="text-xs text-blue-600 font-bold">{leaderboard[1]?.avg_score || 0}%</p>
+                          <p className="text-xs text-blue-600 font-bold">{leaderboard[1]?.avg_score || 0}</p>
                         </div>
                         
                         {/* 1st Place */}
@@ -819,7 +1019,7 @@ const TeacherClassDetail = () => {
                           </div>
                           <div className="text-3xl">🥇</div>
                           <p className="font-bold text-gray-800 truncate max-w-[120px]">{leaderboard[0]?.full_name}</p>
-                          <p className="text-sm text-blue-600 font-bold">{leaderboard[0]?.avg_score || 0}%</p>
+                          <p className="text-sm text-blue-600 font-bold">{leaderboard[0]?.avg_score || 0}</p>
                         </div>
                         
                         {/* 3rd Place */}
@@ -833,7 +1033,7 @@ const TeacherClassDetail = () => {
                           </div>
                           <div className="text-2xl">🥉</div>
                           <p className="font-semibold text-gray-800 text-sm truncate max-w-[100px]">{leaderboard[2]?.full_name}</p>
-                          <p className="text-xs text-blue-600 font-bold">{leaderboard[2]?.avg_score || 0}%</p>
+                          <p className="text-xs text-blue-600 font-bold">{leaderboard[2]?.avg_score || 0}</p>
                         </div>
                       </div>
                     )}
@@ -846,7 +1046,6 @@ const TeacherClassDetail = () => {
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Siswa</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rata-rata Nilai</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quest</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -876,18 +1075,98 @@ const TeacherClassDetail = () => {
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
-                                  📊 {student.avg_score || 0}%
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <span className="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
-                                  {student.quest_count || 0} Quest
+                                  {student.avg_score || 0}
                                 </span>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Statistik Tab */}
+            {activeTab === 'statistics' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-800">Statistik Nilai Siswa</h2>
+                    <p className="text-sm text-gray-500">Perubahan nilai setiap attempt dan rata-rata kelas</p>
+                  </div>
+                </div>
+
+                {statsLoading ? (
+                  <div className="flex items-center justify-center h-56">
+                    <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                  </div>
+                ) : statsChartData.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <div className="w-40 h-40 mx-auto mb-4">
+                      <DotLottieReact
+                        src="https://lottie.host/f1a7d875-709f-46b2-9fe9-c0eb48511099/bE5mdZ6leU.lottie"
+                        loop
+                        autoplay
+                      />
+                    </div>
+                    <p className="text-gray-500">Belum ada attempt untuk kelas ini</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                      <ChartContainer config={statsConfig} className="h-[320px]">
+                        <LineChart data={statsChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="attempt" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <ChartLegend content={<ChartLegendContent />} />
+                          <Line
+                            type="monotone"
+                            dataKey="average"
+                            stroke="var(--color-average)"
+                            strokeWidth={2}
+                            dot={false}
+                            strokeDasharray="6 4"
+                          />
+                          {statsSeries.map((series) => (
+                            <Line
+                              key={series.id}
+                              type="monotone"
+                              dataKey={series.dataKey}
+                              stroke={`var(--color-${series.dataKey})`}
+                              strokeWidth={2}
+                              dot={false}
+                            />
+                          ))}
+                        </LineChart>
+                      </ChartContainer>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                      <h3 className="text-base font-semibold text-gray-800 mb-4">Ringkasan Nilai Siswa</h3>
+                      <div className="grid gap-3">
+                        {statsSummary.map((student) => (
+                          <div key={student.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={student.avatar_url} alt={student.name} />
+                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">
+                                {student.name?.charAt(0)?.toUpperCase() || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{student.name}</p>
+                              <p className="text-xs text-gray-500">{student.attempt_count} attempt</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Rata-rata</span>
+                              <span className="text-sm font-semibold text-blue-600">{student.avg_score}%</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

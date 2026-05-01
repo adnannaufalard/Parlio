@@ -233,7 +233,7 @@ function StudentClasses() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-lg font-semibold text-gray-800">Daftar Kelas Saya</h1>
-        <Button onClick={() => setShowJoinModal(true)}>
+        <Button onClick={() => setShowJoinModal(true)} className="bg-green-500 text-white hover:bg-green-600">
           <Plus className="h-4 w-4 mr-2" />
           Gabung Kelas
         </Button>
@@ -289,7 +289,7 @@ function StudentClasses() {
                     <div className="flex gap-2">
                       <Button 
                         onClick={() => navigate(`/student/class/${classItem.id}`)}
-                        className="flex-1 sm:flex-none"
+                        className="flex-1 sm:flex-none bg-[#1E258F] text-white hover:bg-blue-700"
                       >
                         Lihat Pelajaran
                       </Button>

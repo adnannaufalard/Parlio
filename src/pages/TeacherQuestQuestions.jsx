@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { uploadQuestMedia, deleteQuestMedia, validateFile, getFileTypeFromMime } from '../lib/uploadHelper'
 import TeacherLayout from '../components/TeacherLayout'
+import MultiMediaManager from '../components/MultiMediaManager'
+import MediaGallery, { mergeLegacyMedia, OptionMedia } from '../components/MediaGallery'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
 
@@ -290,6 +292,22 @@ function TeacherQuestQuestions() {
 
 // Question Card Component
 function QuestionCard({ question, index, questionType, onEdit, onDelete }) {
+  // Merge legacy + media_files for display
+  const q = question.question || {}
+  const allMedia = mergeLegacyMedia(q, {
+    question_image_url: 'question_image_url',
+    question_audio_url: 'question_audio_url',
+    question_video_url: 'question_video_url'
+  })
+
+  // Parse options
+  let parsedOptions = []
+  try {
+    if (q.options) {
+      parsedOptions = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
+    }
+  } catch {}
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
       <div className="flex items-start justify-between">
@@ -298,36 +316,34 @@ function QuestionCard({ question, index, questionType, onEdit, onDelete }) {
             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
               Soal #{index + 1}
             </span>
+            {allMedia.length > 0 && (
+              <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                📎 {allMedia.length} media
+              </span>
+            )}
           </div>
           
-          <p className="text-gray-900 font-medium mb-2">{question.question?.question_text || 'No question text'}</p>
+          <p className="text-gray-900 font-medium mb-2">{q.question_text || 'No question text'}</p>
           
           {/* Media Preview */}
-          <div className="space-y-2 mb-2">
-            {question.question?.question_image_url && (
-              <img src={question.question.question_image_url} alt="Question" className="max-h-32 rounded border" />
-            )}
-            {question.question?.question_audio_url && (
-              <audio controls className="w-full h-8">
-                <source src={question.question.question_audio_url} type="audio/mpeg" />
-              </audio>
-            )}
-            {question.question?.question_video_url && (
-              <video controls className="w-full max-h-40 rounded border">
-                <source src={question.question.question_video_url} type="video/mp4" />
-              </video>
-            )}
-          </div>
+          {allMedia.length > 0 && (
+            <div className="mb-2">
+              <MediaGallery mediaFiles={allMedia} compact />
+            </div>
+          )}
           
           {/* Preview based on question type */}
-          {questionType === 'multiple_choice' && question.question?.options && (
+          {questionType === 'multiple_choice' && parsedOptions.length > 0 && (
             <div className="text-sm text-gray-600 space-y-1 mt-2">
-              {JSON.parse(question.question.options).map((opt, i) => (
-                <div key={i} className="flex items-center gap-2">
+              {parsedOptions.map((opt, i) => (
+                <div key={i} className="flex items-start gap-2">
                   <span className={opt.is_correct ? 'text-green-600 font-medium' : ''}>
                     {String.fromCharCode(65 + i)}. {opt.text}
                     {opt.is_correct && ' ✓'}
                   </span>
+                  {opt.media && opt.media.length > 0 && (
+                    <OptionMedia mediaFiles={opt.media} />
+                  )}
                 </div>
               ))}
             </div>
@@ -360,23 +376,16 @@ function QuestionCard({ question, index, questionType, onEdit, onDelete }) {
 // Question Modal Component
 function QuestionModal({ questId, questionType, question, questionOrder, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false)
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [uploadingAudio, setUploadingAudio] = useState(false)
-  const [uploadingVideo, setUploadingVideo] = useState(false)
   
-  // Form state berbeda tergantung question type
+  // Form state
   const [form, setForm] = useState({
     question_text: '',
-    // Media files
-    question_image_url: '',
-    question_audio_url: '',
-    question_video_url: '',
     // Multiple choice
     options: [
-      { text: '', is_correct: false },
-      { text: '', is_correct: false },
-      { text: '', is_correct: false },
-      { text: '', is_correct: false }
+      { text: '', is_correct: false, media: [] },
+      { text: '', is_correct: false, media: [] },
+      { text: '', is_correct: false, media: [] },
+      { text: '', is_correct: false, media: [] }
     ],
     // Essay
     essay_answer: '',
@@ -392,16 +401,20 @@ function QuestionModal({ questId, questionType, question, questionOrder, onClose
     audio_url: '',
     listening_answer: ''
   })
+  const [mediaFiles, setMediaFiles] = useState([])
 
   useEffect(() => {
     if (question?.question) {
       const q = question.question
+      // Parse options with media support
+      let parsedOptions = form.options
+      if (q.options) {
+        const rawOpts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options
+        parsedOptions = rawOpts.map(o => ({ text: o.text || '', is_correct: o.is_correct || false, media: o.media || [] }))
+      }
       setForm({
         question_text: q.question_text || '',
-        question_image_url: q.question_image_url || '',
-        question_audio_url: q.question_audio_url || '',
-        question_video_url: q.question_video_url || '',
-        options: q.options ? JSON.parse(q.options) : form.options,
+        options: parsedOptions,
         essay_answer: q.correct_answer || '',
         pairs: q.pairs ? JSON.parse(q.pairs) : form.pairs,
         correct_order: q.correct_order ? JSON.parse(q.correct_order) : [],
@@ -409,6 +422,15 @@ function QuestionModal({ questId, questionType, question, questionOrder, onClose
         audio_url: q.audio_url || '',
         listening_answer: q.correct_answer || ''
       })
+      // Load media: merge legacy fields + media_files
+      const existingMedia = []
+      if (q.question_image_url) existingMedia.push({ type: 'image', url: q.question_image_url, name: 'Image', source: 'legacy' })
+      if (q.question_audio_url) existingMedia.push({ type: 'audio', url: q.question_audio_url, name: 'Audio', source: 'legacy' })
+      if (q.question_video_url) existingMedia.push({ type: 'video', url: q.question_video_url, name: 'Video', source: 'legacy' })
+      const mf = Array.isArray(q.media_files) ? q.media_files : []
+      const urls = new Set(existingMedia.map(m => m.url))
+      mf.forEach(m => { if (!urls.has(m.url)) existingMedia.push(m) })
+      setMediaFiles(existingMedia)
     }
   }, [question])
 
@@ -423,10 +445,10 @@ function QuestionModal({ questId, questionType, question, questionOrder, onClose
       let questionData = {
         question_text: form.question_text,
         question_type: questionType,
-        question_image_url: form.question_image_url || null,
-        question_audio_url: form.question_audio_url || null,
-        question_video_url: form.question_video_url || null,
-        created_by: user.id
+        // Legacy fields from mediaFiles for backward compat
+        question_image_url: mediaFiles.find(m => m.type === 'image')?.url || null,
+        question_audio_url: mediaFiles.find(m => m.type === 'audio')?.url || null,
+        question_video_url: mediaFiles.find(m => m.type === 'video')?.url || null,
       }
 
       // Add type-specific data
@@ -445,27 +467,40 @@ function QuestionModal({ questId, questionType, question, questionOrder, onClose
         questionData.correct_answer = form.listening_answer
       }
 
+      // Save question with all fields including media_files
+      questionData.media_files = mediaFiles
+
       if (question) {
-        // Update existing question
-        const { error: qError } = await supabase
+        // Update existing question — do NOT send created_by (RLS blocks if different user)
+        const { data: updated, error: qError } = await supabase
           .from('questions')
           .update(questionData)
           .eq('id', question.question_id)
+          .select()
 
-        if (qError) throw qError
-
-        // No need to update quest_questions, only question data changed
-
+        if (qError) {
+          console.error('Update error:', qError)
+          throw qError
+        }
+        if (!updated || updated.length === 0) {
+          console.warn('Update returned 0 rows — possible RLS issue')
+          toast.error('Gagal update: kemungkinan tidak punya akses ke soal ini')
+          return
+        }
         toast.success('Soal berhasil diupdate')
       } else {
-        // Create new question
+        // Create new question — include created_by only on insert
+        questionData.created_by = user.id
         const { data: newQuestion, error: qError } = await supabase
           .from('questions')
           .insert([questionData])
           .select()
           .single()
 
-        if (qError) throw qError
+        if (qError) {
+          console.error('Insert error:', qError)
+          throw qError
+        }
 
         // Link to quest
         const { error: qqError } = await supabase
@@ -521,217 +556,16 @@ function QuestionModal({ questId, questionType, question, questionOrder, onClose
           </div>
 
           {/* Media Upload Section */}
-          <div className="border-t pt-4 space-y-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Media Pendukung (Opsional)</h3>
-            
-            {/* Image Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🖼️ Gambar
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={form.question_image_url}
-                  onChange={(e) => setForm({ ...form, question_image_url: e.target.value })}
-                  placeholder="https://... atau upload file"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-black"
-                />
-                <label className="relative cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition flex items-center gap-2">
-                  {uploadingImage ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Uploading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      <span>Upload</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={uploadingImage}
-                    onChange={async (e) => {
-                      const file = e.target.files[0]
-                      if (!file) return
-                      
-                      try {
-                        validateFile(file, 10) // 10MB max for images
-                        setUploadingImage(true)
-                        const { url } = await uploadQuestMedia(file, 'images')
-                        setForm({ ...form, question_image_url: url })
-                        toast.success('Gambar berhasil diupload')
-                      } catch (error) {
-                        toast.error(error.message || 'Gagal upload gambar')
-                      } finally {
-                        setUploadingImage(false)
-                        e.target.value = '' // Reset input
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-              {form.question_image_url && (
-                <div className="mt-2 relative inline-block">
-                  <img src={form.question_image_url} alt="Preview" className="max-h-40 rounded-md border" />
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, question_image_url: '' })}
-                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Audio Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🎵 Audio
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={form.question_audio_url}
-                  onChange={(e) => setForm({ ...form, question_audio_url: e.target.value })}
-                  placeholder="https://... atau upload file"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-black"
-                />
-                <label className="relative cursor-pointer bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition flex items-center gap-2">
-                  {uploadingAudio ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Uploading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      <span>Upload</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    className="hidden"
-                    disabled={uploadingAudio}
-                    onChange={async (e) => {
-                      const file = e.target.files[0]
-                      if (!file) return
-                      
-                      try {
-                        validateFile(file, 20) // 20MB max for audio
-                        setUploadingAudio(true)
-                        const { url } = await uploadQuestMedia(file, 'audio')
-                        setForm({ ...form, question_audio_url: url })
-                        toast.success('Audio berhasil diupload')
-                      } catch (error) {
-                        toast.error(error.message || 'Gagal upload audio')
-                      } finally {
-                        setUploadingAudio(false)
-                        e.target.value = ''
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-              {form.question_audio_url && (
-                <div className="mt-2 flex items-center gap-2">
-                  <audio controls className="flex-1">
-                    <source src={form.question_audio_url} type="audio/mpeg" />
-                  </audio>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, question_audio_url: '' })}
-                    className="bg-red-500 text-white p-2 rounded hover:bg-red-600"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Video Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🎥 Video
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={form.question_video_url}
-                  onChange={(e) => setForm({ ...form, question_video_url: e.target.value })}
-                  placeholder="https://... atau upload file"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-black"
-                />
-                <label className="relative cursor-pointer bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition flex items-center gap-2">
-                  {uploadingVideo ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Uploading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      <span>Upload</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="video/*"
-                    className="hidden"
-                    disabled={uploadingVideo}
-                    onChange={async (e) => {
-                      const file = e.target.files[0]
-                      if (!file) return
-                      
-                      try {
-                        validateFile(file, 50) // 50MB max for video
-                        setUploadingVideo(true)
-                        const { url } = await uploadQuestMedia(file, 'videos')
-                        setForm({ ...form, question_video_url: url })
-                        toast.success('Video berhasil diupload')
-                      } catch (error) {
-                        toast.error(error.message || 'Gagal upload video')
-                      } finally {
-                        setUploadingVideo(false)
-                        e.target.value = ''
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-              {form.question_video_url && (
-                <div className="mt-2">
-                  <video controls className="w-full max-h-60 rounded-md border">
-                    <source src={form.question_video_url} type="video/mp4" />
-                  </video>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, question_video_url: '' })}
-                    className="mt-2 bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
-                  >
-                    Hapus Video
-                  </button>
-                </div>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Max: Gambar 10MB, Audio 20MB, Video 50MB
-              </p>
-            </div>
+          <div className="border-t pt-4">
+            <MultiMediaManager
+              mediaFiles={mediaFiles}
+              onChange={setMediaFiles}
+              maxFiles={5}
+              bucket="quest-media"
+              folder="images"
+              label="Media Pendukung (Opsional)"
+              acceptTypes="image/*,audio/*,video/*"
+            />
           </div>
 
 
@@ -802,32 +636,45 @@ function MultipleChoiceFields({ form, setForm }) {
       <h3 className="font-semibold text-gray-900 mb-3">Pilihan Jawaban</h3>
       <div className="space-y-3">
         {form.options.map((option, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 w-6">
-              {String.fromCharCode(65 + index)}.
-            </span>
-            <input
-              type="text"
-              value={option.text}
-              onChange={(e) => updateOption(index, 'text', e.target.value)}
-              placeholder={`Pilihan ${String.fromCharCode(65 + index)}`}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-black"
-              required
-            />
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 w-6">
+                {String.fromCharCode(65 + index)}.
+              </span>
               <input
-                type="checkbox"
-                checked={option.is_correct}
-                onChange={(e) => updateOption(index, 'is_correct', e.target.checked)}
-                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                type="text"
+                value={option.text}
+                onChange={(e) => updateOption(index, 'text', e.target.value)}
+                placeholder={`Pilihan ${String.fromCharCode(65 + index)}`}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-black"
+                required
               />
-              <span className="text-sm text-gray-700">Benar</span>
-            </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={option.is_correct}
+                  onChange={(e) => updateOption(index, 'is_correct', e.target.checked)}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-700">Benar</span>
+              </label>
+            </div>
+            {/* Option media */}
+            <MultiMediaManager
+              mediaFiles={option.media || []}
+              onChange={(newMedia) => updateOption(index, 'media', newMedia)}
+              maxFiles={3}
+              bucket="quest-media"
+              folder="images"
+              label=""
+              acceptTypes="image/*,audio/*"
+              compact
+            />
           </div>
         ))}
       </div>
       <p className="text-xs text-gray-500 mt-2">
-        ✓ Centang satu pilihan sebagai jawaban yang benar
+        ✓ Centang satu pilihan sebagai jawaban yang benar. Bisa tambahkan gambar/audio per pilihan.
       </p>
     </div>
   )
