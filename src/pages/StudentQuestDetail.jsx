@@ -251,7 +251,7 @@ function StudentQuestDetail() {
       const coinsEarned = isPassed ? (correctAnswers * (quest?.coins_reward || 0)) : 0
 
       const resultData = {
-        questId, lessonId: quest?.lesson_id, chapterId: quest?.chapter_id, questTitle: quest?.title || 'Quest',
+        questId, materialId: quest?.material_id, lessonId: quest?.lesson_id, chapterId: quest?.chapter_id, classId: location.state?.classId, questTitle: quest?.title || 'Quest',
         score: totalScore, maxScore, percentage, correctAnswers, wrongAnswers,
         totalQuestions: questions.length, timeSpent, xpEarned, coinsEarned,
         minScoreToPass: minScoreToPass,

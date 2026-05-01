@@ -45,16 +45,42 @@ function StudentQuestResult() {
   const handleTryAgain = () => {
     if (resultData?.questId && canRetry) {
       // Navigate to quest with replace to avoid stacking history
-      navigate(`/student/quest/${resultData.questId}`, { replace: true })
+      navigate(`/student/quest/${resultData.questId}`, { 
+        state: {
+          classId: resultData.classId,
+          chapterId: resultData.chapterId,
+          lessonId: resultData.lessonId,
+          materialId: resultData.materialId
+        },
+        replace: true 
+      })
     }
   }
 
   const handleBack = () => {
-    // Navigate back to lesson detail
-    if (resultData?.lessonId) {
-      navigate(`/student/lesson/${resultData.lessonId}`, { replace: true })
+    // Navigate back to material detail if available, else lesson detail
+    if (resultData?.materialId && resultData?.chapterId && resultData?.lessonId) {
+      navigate(`/student/material/${resultData.materialId}`, { 
+        state: {
+          classId: resultData.classId,
+          chapterId: resultData.chapterId,
+          lessonId: resultData.lessonId
+        },
+        replace: true 
+      })
+    } else if (resultData?.lessonId) {
+      navigate(`/student/lesson/${resultData.lessonId}`, { 
+        state: {
+          classId: resultData.classId,
+          chapterId: resultData.chapterId
+        },
+        replace: true 
+      })
     } else if (resultData?.chapterId) {
-      navigate(`/student/chapters/${resultData.chapterId}`, { replace: true })
+      navigate(`/student/chapters/${resultData.chapterId}`, { 
+        state: { classId: resultData.classId },
+        replace: true 
+      })
     } else {
       navigate('/student/chapters', { replace: true })
     }

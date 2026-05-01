@@ -186,7 +186,7 @@ export default function StudentMaterialDetail() {
   }
 
   const allMedia = material ? mergeLegacyMedia(material, { file_url: 'file_url' }) : []
-  const handleStartQuest = () => { if (quest) { setShowQuestConfirm(false); navigate(`/student/quest/${quest.id}`) } }
+  const handleStartQuest = () => { if (quest) { setShowQuestConfirm(false); navigate(`/student/quest/${quest.id}`, { state: location.state }) } }
   const handleBack = () => {
     if (location.state?.lessonId) navigate(`/student/lesson/${location.state.lessonId}`, { state: location.state })
     else if (material?.lesson_id) navigate(`/student/lesson/${material.lesson_id}`)
