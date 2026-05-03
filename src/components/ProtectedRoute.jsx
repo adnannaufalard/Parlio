@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
+import { presenceService } from '../lib/presenceService'
 
 function ProtectedRoute({ children, allowedRoles }) {
   const navigate = useNavigate()
@@ -38,9 +39,19 @@ function ProtectedRoute({ children, allowedRoles }) {
         navigate('/login')
         return
       }
+      
+      await presenceService.initialize()
+      
       setLoading(false)
     }
     checkAccess()
+    
+    // Cleanup on unmount
+    return () => {
+      // We don't disconnect immediately here because route changes 
+      // within the app would disconnect and reconnect.
+      // We only disconnect when explicitly logging out.
+    }
   }, [navigate, allowedRoles])
 
   if (loading) {

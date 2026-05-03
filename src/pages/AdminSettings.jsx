@@ -250,7 +250,7 @@ function AdminSettings() {
 
   if (loading) {
     return (
-      <AdminLayout title="Settings">
+      <AdminLayout title="Profile">
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="w-6 h-6 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
         </div>
@@ -259,7 +259,7 @@ function AdminSettings() {
   }
 
   return (
-    <AdminLayout title="Settings">
+    <AdminLayout title="Profile">
       <div className="max-w-2xl space-y-6">
         {/* Avatar Section */}
         <Card>

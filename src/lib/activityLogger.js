@@ -48,14 +48,23 @@ export async function logActivity({
       user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null
     }
 
-    const { data, error } = await supabase
-      .from('activity_logs')
-      .insert([logData])
-      .select()
-      .single()
+    const { data, error } = await supabase.rpc('log_activity_secure', {
+      p_user_id: logData.user_id,
+      p_user_email: logData.user_email,
+      p_user_name: logData.user_name,
+      p_user_role: logData.user_role,
+      p_action: logData.action,
+      p_action_type: logData.action_type,
+      p_resource_type: logData.resource_type,
+      p_resource_id: logData.resource_id,
+      p_resource_name: logData.resource_name,
+      p_details: logData.details,
+      p_ip_address: logData.ip_address,
+      p_user_agent: logData.user_agent
+    })
 
     if (error) {
-      console.error('Error logging activity:', error)
+      console.error('Error logging activity (RPC):', error)
       return null
     }
 

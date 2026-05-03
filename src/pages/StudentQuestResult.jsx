@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
+import { BadgePopup } from '../components/BadgePopup'
 
 function StudentQuestResult() {
   const navigate = useNavigate()
@@ -11,17 +12,35 @@ function StudentQuestResult() {
   const [resultData, setResultData] = useState(null)
   const [showAnswers, setShowAnswers] = useState(false)
   const [userProfile, setUserProfile] = useState(null)
+  const [showBadgePopup, setShowBadgePopup] = useState(false)
+  const [badgeInfo, setBadgeInfo] = useState({ level: 1, chapterName: 'Pelajaran' })
 
   useEffect(() => {
     if (location.state?.result) {
       setResultData(location.state.result)
       setLoading(false)
       fetchUserProfile()
+      if (location.state.result.newBadgeAwarded) {
+        // Fetch chapter info to show in badge
+        fetchChapterInfo(location.state.result.chapterId)
+      }
     } else {
       toast.error('Data hasil tidak ditemukan')
       navigate(-1)
     }
   }, [location, navigate])
+
+  const fetchChapterInfo = async (chapterId) => {
+    try {
+      const { data } = await supabase.from('chapters').select('title, floor_number').eq('id', chapterId).single()
+      if (data) {
+        setBadgeInfo({ level: data.floor_number || 1, chapterName: data.title })
+        setShowBadgePopup(true)
+      }
+    } catch (e) {
+      console.error('Error fetching chapter:', e)
+    }
+  }
 
   const fetchUserProfile = async () => {
     try {
@@ -120,6 +139,12 @@ function StudentQuestResult() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <BadgePopup 
+        isOpen={showBadgePopup} 
+        onClose={() => setShowBadgePopup(false)} 
+        badgeLevel={badgeInfo.level}
+        chapterName={badgeInfo.chapterName}
+      />
       {/* Header with integrated User Info */}
       <div className={`${isPassed ? 'bg-green-600' : 'bg-red-500'} text-white`}>
         {/* User Info Bar - Glassmorphism */}

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { createUser, updateUser, deleteUser } from '../lib/adminApi'
 import { toast } from '@/hooks/use-toast'
 import AdminLayout from '../components/AdminLayout'
-import { ActivityLogger } from '../lib/activityLogger'
+import { ActivityLogger, logActivity } from '../lib/activityLogger'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Avatar, AvatarImage, AvatarFallback, AvatarBadge } from '@/components/ui/avatar'
-import { Users, GraduationCap, BookOpen, Pencil, Trash2, Plus } from 'lucide-react'
+import { Users, GraduationCap, BookOpen, Pencil, Trash2, Plus, RotateCcw } from 'lucide-react'
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([])
@@ -29,6 +29,8 @@ export default function AdminUsers() {
   const [saving, setSaving] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState(null)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [userToReset, setUserToReset] = useState(null)
   const pageSize = 10
 
   useEffect(() => { fetchUsers() }, [])
@@ -86,6 +88,29 @@ export default function AdminUsers() {
     } finally {
       setDeleteDialogOpen(false)
       setUserToDelete(null)
+    }
+  }
+
+  const handleResetClick = (u) => { setUserToReset(u); setResetDialogOpen(true) }
+  const handleResetConfirm = async () => {
+    if (!userToReset) return
+    setSaving(true)
+    try {
+      const { data, error } = await supabase.rpc('admin_reset_student_progress', { p_student_id: userToReset.id })
+      if (error) {
+        if (error.message.includes('function') || error.code === '42883') {
+          throw new Error('RPC function belum dibuat. Jalankan migration fix_activity_logs_and_reset.sql')
+        }
+        throw error
+      }
+      toast({ title: 'Berhasil', description: `Progress siswa "${userToReset.full_name}" telah di-reset` })
+      logActivity({ action: `Reset progress siswa: ${userToReset.full_name}`, actionType: 'update', resourceType: 'user', resourceId: userToReset.id })
+    } catch (e) {
+      toast({ title: 'Gagal', description: e.message, variant: 'destructive' })
+    } finally {
+      setSaving(false)
+      setResetDialogOpen(false)
+      setUserToReset(null)
     }
   }
 
@@ -189,6 +214,9 @@ export default function AdminUsers() {
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{formatDate(u.created_at)}</TableCell>
                   <TableCell className="text-right">
+                    {u.role === 'siswa' && (
+                      <Button variant="ghost" size="icon" onClick={() => handleResetClick(u)} title="Reset Progress Siswa"><RotateCcw className="h-4 w-4 text-orange-500" /></Button>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(u)}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(u)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
@@ -261,6 +289,26 @@ export default function AdminUsers() {
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="!bg-red-600 !text-white hover:!bg-red-700">Hapus</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset Progress Confirmation Dialog */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Progress Siswa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin me-reset SEMUA progress untuk siswa "{userToReset?.full_name}"? 
+              <br/><br/>
+              <strong>Peringatan:</strong> Aksi ini akan menghapus semua history attempt, XP, dan Coins siswa tersebut menjadi 0. Aksi ini tidak dapat dibatalkan!
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetConfirm} disabled={saving} className="!bg-orange-500 !text-white hover:!bg-orange-600">
+              {saving ? 'Memproses...' : 'Reset Progress'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

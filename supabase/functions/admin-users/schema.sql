@@ -129,9 +129,11 @@ CREATE TABLE public.class_forum_posts (
   content text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  parent_id uuid,
   CONSTRAINT class_forum_posts_pkey PRIMARY KEY (id),
   CONSTRAINT class_forum_posts_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
-  CONSTRAINT class_forum_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+  CONSTRAINT class_forum_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT class_forum_posts_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.class_forum_posts(id)
 );
 CREATE TABLE public.class_materials (
   id integer NOT NULL DEFAULT nextval('class_materials_id_seq'::regclass),
@@ -205,6 +207,7 @@ CREATE TABLE public.lesson_materials (
   created_by uuid,
   created_at timestamp with time zone DEFAULT now(),
   description text,
+  media_files jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT lesson_materials_pkey PRIMARY KEY (id),
   CONSTRAINT lesson_materials_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES public.lessons(id),
   CONSTRAINT lesson_materials_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
@@ -305,6 +308,7 @@ CREATE TABLE public.questions (
   scrambled_words text,
   audio_url text,
   question_video_url text,
+  media_files jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT questions_pkey PRIMARY KEY (id),
   CONSTRAINT questions_quiz_id_fkey FOREIGN KEY (quiz_id) REFERENCES public.quizzes(id),
   CONSTRAINT questions_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES public.lessons(id),
@@ -513,4 +517,16 @@ CREATE TABLE public.student_quiz_attempts (
   CONSTRAINT student_quiz_attempts_pkey PRIMARY KEY (id),
   CONSTRAINT student_quiz_attempts_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.profiles(id),
   CONSTRAINT student_quiz_attempts_quiz_id_fkey FOREIGN KEY (quiz_id) REFERENCES public.quizzes(id)
+);
+CREATE TABLE public.user_notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  title character varying NOT NULL,
+  message text NOT NULL,
+  type character varying NOT NULL DEFAULT 'info'::character varying,
+  is_read boolean NOT NULL DEFAULT false,
+  link text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT user_notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );

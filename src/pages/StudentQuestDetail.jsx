@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient'
 import MediaGallery, { mergeLegacyMedia, OptionMedia } from '../components/MediaGallery'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import toast from 'react-hot-toast'
+import { logActivity } from '../lib/activityLogger'
+import { NotificationService } from '../lib/notificationService'
 
 function StudentQuestDetail() {
   const navigate = useNavigate()
@@ -280,10 +282,25 @@ function StudentQuestDetail() {
 
         if (!error) resultData.attemptId = savedAttempt?.id
 
-        if (isPassed && isBetterScore && (xpEarned > 0 || coinsEarned > 0)) {
-          const { data: profile } = await supabase
-            .from('profiles').select('xp_points, coins').eq('id', user.id).single()
+        const { data: profile } = await supabase.from('profiles').select('full_name, email, role, xp_points, coins').eq('id', user.id).single()
 
+        // Log Activity for completing quest
+        if (profile) {
+          await logActivity(
+            user.id,
+            profile.email,
+            profile.full_name,
+            profile.role,
+            `Mengerjakan Quest: ${quest?.title} (Skor: ${percentage}%, Status: ${isPassed ? 'Lulus' : 'Gagal'})`,
+            'update',
+            'quest',
+            questId,
+            quest?.title,
+            { score: percentage, passed: isPassed, xp: xpEarned, coins: coinsEarned }
+          )
+        }
+
+        if (isPassed && isBetterScore && (xpEarned > 0 || coinsEarned > 0)) {
           if (profile) {
             let xpToAdd = bestPrevious?.xp_earned ? xpEarned - bestPrevious.xp_earned : xpEarned
             let coinsToAdd = bestPrevious?.coins_earned ? coinsEarned - bestPrevious.coins_earned : coinsEarned
@@ -297,7 +314,10 @@ function StudentQuestDetail() {
 
         // Check if chapter is completed and award badge if applicable
         if (isPassed && quest?.chapter_id) {
-          await checkAndAwardChapterBadge(user.id, quest.chapter_id)
+          const newBadge = await checkAndAwardChapterBadge(user.id, quest.chapter_id)
+          if (newBadge) {
+            resultData.newBadgeAwarded = true
+          }
         }
       }
 
@@ -355,19 +375,41 @@ function StudentQuestDetail() {
           .single()
 
         if (chapter) {
-          // Award badge (floor_number should be 1-5 for unite-one to unite-five)
-          await supabase
+          // Check if badge already exists
+          const { data: existingBadge } = await supabase
             .from('student_achievement_badges')
-            .upsert({
-              student_id: userId,
-              chapter_id: chapterId,
-              badge_type: 'chapter_completion',
-              badge_level: chapter.floor_number || 1
-            }, {
-              onConflict: 'student_id,chapter_id'
-            })
+            .select('id')
+            .eq('student_id', userId)
+            .eq('chapter_id', chapterId)
+            .single()
+
+          if (!existingBadge) {
+            // Award badge (floor_number should be 1-5 for unite-one to unite-five)
+            const { error } = await supabase
+              .from('student_achievement_badges')
+              .upsert({
+                student_id: userId,
+                chapter_id: chapterId,
+                badge_type: 'chapter_completion',
+                badge_level: chapter.floor_number || 1
+              }, {
+                onConflict: 'student_id,chapter_id'
+              })
+
+            if (!error) {
+              await NotificationService.createNotification({
+                userId: userId,
+                title: 'Pencapaian Baru!',
+                message: `Selamat! Anda mendapatkan Badge Level ${chapter.floor_number || 1} karena menyelesaikan semua pelajaran.`,
+                type: 'achievement',
+                link: '/student/profile'
+              })
+              return true
+            }
+          }
         }
       }
+      return false
     } catch (error) {
       console.error('Error checking chapter badge:', error)
     }

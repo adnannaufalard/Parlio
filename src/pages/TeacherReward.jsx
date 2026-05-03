@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import TeacherLayout from '../components/TeacherLayout'
 import toast from 'react-hot-toast'
+import { NotificationService } from '../lib/notificationService'
 
 function TeacherReward() {
   const navigate = useNavigate()
@@ -183,6 +184,14 @@ function TeacherReward() {
         throw newFuncError
       }
 
+      await NotificationService.createNotification({
+        userId: selectedStudent.id,
+        title: 'Reward Diterima!',
+        message: `Kamu mendapatkan ${quickRewardXp > 0 ? quickRewardXp + ' XP' : ''} ${quickRewardXp > 0 && quickRewardCoins > 0 ? 'dan ' : ''} ${quickRewardCoins > 0 ? quickRewardCoins + ' Coins' : ''} dari guru${rewardReason ? ` karena: ${rewardReason}` : ''}.`,
+        type: 'system',
+        link: '/student/profile'
+      })
+
       toast.success(`Berhasil memberikan ${quickRewardXp} XP dan ${quickRewardCoins} Coins ke ${selectedStudent.full_name}!`)
       
       // Reset form
@@ -243,6 +252,14 @@ function TeacherReward() {
         coins_amount: rewardType === 'coins' ? rewardAmount : 0,
         reason: rewardReason || `Manual ${rewardType.toUpperCase()} reward`
       }).catch(() => {}) // Ignore error if table doesn't exist
+
+      await NotificationService.createNotification({
+        userId: selectedStudent.id,
+        title: 'Reward Diterima!',
+        message: `Kamu mendapatkan ${rewardAmount} ${rewardType.toUpperCase()} dari guru${rewardReason ? ` karena: ${rewardReason}` : ''}.`,
+        type: 'system',
+        link: '/student/profile'
+      })
 
       toast.success(`Berhasil memberikan ${rewardAmount} ${rewardType.toUpperCase()} ke ${selectedStudent.full_name}!`)
       

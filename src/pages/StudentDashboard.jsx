@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
 import { Avatar, AvatarImage, AvatarFallback, AvatarBadge } from '@/components/ui/avatar'
+import { NotificationsPopover } from '../components/NotificationsPopover'
 import toast from 'react-hot-toast'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import logo2 from '../assets/logo/2.png' // Logo putih untuk header
@@ -40,9 +41,9 @@ function StudentDashboard() {
   const fetchAnnouncements = async () => {
     try {
       const { data, error } = await supabase.rpc('get_active_announcements')
-      
+
       if (error) throw error
-      
+
       if (data && data.length > 0) {
         // Transform database data to component format
         const cards = data.map(ann => ({
@@ -108,7 +109,7 @@ function StudentDashboard() {
         .select('message, display_order, published_at, expires_at')
         .eq('is_active', true)
         .order('display_order')
-      
+
       if (messages && messages.length > 0) {
         // Filter messages by schedule
         const validMessages = messages.filter(m => {
@@ -116,7 +117,7 @@ function StudentDashboard() {
           const notExpired = !m.expires_at || new Date(m.expires_at) >= new Date()
           return publishedOk && notExpired
         })
-        
+
         if (validMessages.length > 0) {
           // Calculate which message to show based on day of year
           const startOfYear = new Date(new Date().getFullYear(), 0, 0)
@@ -198,11 +199,54 @@ function StudentDashboard() {
           .eq('class_id', currentClassId)
           .eq('is_active', true)
 
+        const chapterIds = (assignedChapters || []).map(ac => ac.chapter?.id).filter(Boolean)
+
+        const { data: lessonsData } = await supabase
+          .from('lessons')
+          .select('id, chapter_id')
+          .in('chapter_id', chapterIds)
+
+        const lessonsByChapter = {}
+          ; (lessonsData || []).forEach((lesson) => {
+            if (!lessonsByChapter[lesson.chapter_id]) {
+              lessonsByChapter[lesson.chapter_id] = []
+            }
+            lessonsByChapter[lesson.chapter_id].push(lesson)
+          })
+
+        const allLessonIds = (lessonsData || []).map(l => l.id)
+
+        const { data: questsData } = allLessonIds.length > 0
+          ? await supabase
+            .from('quests')
+            .select('id, lesson_id')
+            .in('lesson_id', allLessonIds)
+          : { data: [] }
+
+        const questIds = (questsData || []).map(q => q.id)
+        const { data: attemptsData } = questIds.length > 0
+          ? await supabase
+            .from('student_quest_attempts')
+            .select('quest_id')
+            .eq('student_id', user.id)
+            .eq('passed', true)
+            .in('quest_id', questIds)
+          : { data: [] }
+
+        const passedQuestIds = new Set((attemptsData || []).map(a => a.quest_id))
+        const questIdsByLesson = {}
+          ; (questsData || []).forEach((quest) => {
+            if (!questIdsByLesson[quest.lesson_id]) {
+              questIdsByLesson[quest.lesson_id] = []
+            }
+            questIdsByLesson[quest.lesson_id].push(quest.id)
+          })
+
         // Get student progress for each chapter
         const chaptersWithProgress = await Promise.all(
           (assignedChapters || []).map(async (ac) => {
             const chapter = ac.chapter
-            
+
             // Get chapter progress
             const { data: progress } = await supabase
               .from('student_chapter_progress')
@@ -211,30 +255,29 @@ function StudentDashboard() {
               .eq('chapter_id', chapter.id)
               .maybeSingle()
 
-            // Get lessons count
-            const { count: lessonsCount } = await supabase
-              .from('lessons')
-              .select('id', { count: 'exact', head: true })
-              .eq('chapter_id', chapter.id)
+            const chapterLessons = lessonsByChapter[chapter.id] || []
 
-            // Get completed lessons count
-            const { count: completedCount } = await supabase
-              .from('student_lesson_progress')
-              .select('id', { count: 'exact', head: true })
-              .eq('student_id', user.id)
-              .eq('is_completed', true)
-              .in('lesson_id', 
-                (await supabase.from('lessons').select('id').eq('chapter_id', chapter.id)).data?.map(l => l.id) || []
-              )
+            const lessonsWithProgress = chapterLessons.map((lesson) => {
+              const lessonQuestIds = questIdsByLesson[lesson.id] || []
+              const isCompleted = lessonQuestIds.length > 0
+                ? lessonQuestIds.every((questId) => passedQuestIds.has(questId))
+                : false
+              return { ...lesson, isCompleted }
+            })
+
+            const totalLessons = lessonsWithProgress.length
+            const completedCount = lessonsWithProgress.filter(l => l.isCompleted).length
+            const isCompleted = totalLessons > 0 && completedCount === totalLessons
 
             return {
               ...chapter,
               progress: progress || { is_unlocked: false, is_completed: false },
               // Chapter pertama (floor 1) selalu unlocked, yang lain tergantung progress
               isLocked: chapter.floor_number === 1 ? false : !(progress?.is_unlocked ?? false),
-              totalLessons: lessonsCount || 0,
-              completedLessons: completedCount || 0,
-              percentage: lessonsCount > 0 ? Math.round((completedCount / lessonsCount) * 100) : 0
+              totalLessons: totalLessons,
+              completedLessons: completedCount,
+              percentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
+              isCompleted
             }
           })
         )
@@ -374,7 +417,7 @@ function StudentDashboard() {
     <StudentLayout showHeader={false} showBottomNav={true}>
       {/* Mobile: Custom Header with Gradient */}
       <div className="lg:hidden -mx-4 -mt-6 mb-6">
-        <div 
+        <div
           className="px-6 pt-8 pb-24"
           style={{
             background: 'linear-gradient(135deg, #1E258F 0%, #4450FF 100%)'
@@ -384,18 +427,18 @@ function StudentDashboard() {
           <div className="flex items-center justify-between mb-8">
             {/* Logo */}
             <img src={logo2} alt="Parlio" className="h-8" />
-            
+
             {/* Right: Bell & Avatar */}
             <div className="flex items-center gap-3">
               {/* Notification Bell */}
-              <button className="relative p-2 hover:bg-white/10 rounded-full transition">
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
-                </svg>
-                {/* Red dot indicator - only shown when there are notifications */}
-                {false && <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></div>}
-              </button>
-              
+              <NotificationsPopover>
+                <button className="relative p-2 hover:bg-white/10 rounded-full transition text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+                  </svg>
+                </button>
+              </NotificationsPopover>
+
               {/* Avatar */}
               <Link to="/student/profile" className="relative">
                 <Avatar className="h-10 w-10 ring-2 ring-white/30">
@@ -439,7 +482,7 @@ function StudentDashboard() {
               {/* Divider */}
               <div className="w-px h-9 bg-gray-200/50"></div>
 
-              {/* Total Poin */}
+              {/* Total Coin */}
               <div className="flex items-center gap-1.5 flex-1">
                 <div className="w-9 h-9 rounded-xl bg-yellow-500 flex items-center justify-center shadow-md flex-shrink-0">
                   <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -453,7 +496,7 @@ function StudentDashboard() {
               </div>
 
               {/* Button Lihat Peringkat */}
-              <Link 
+              <Link
                 to="/student/leaderboard"
                 className="bg-[#1E258F] hover:bg-[#161d6f] text-white px-3.5 py-2 rounded-xl font-bold text-[11px] shadow-lg transition flex-shrink-0 whitespace-nowrap"
               >
@@ -466,7 +509,7 @@ function StudentDashboard() {
 
       {/* Desktop: Keep existing header */}
       <div className="hidden lg:block -mx-4 -mt-6 mb-8">
-        <div 
+        <div
           className="px-8 pt-10 pb-24"
           style={{
             background: 'linear-gradient(135deg, #1E258F 0%, #4450FF 100%)'
@@ -476,18 +519,18 @@ function StudentDashboard() {
           <div className="flex items-center justify-between mb-10">
             {/* Logo */}
             <img src={logo2} alt="Parlio" className="h-10" />
-            
+
             {/* Right: Bell & Avatar */}
             <div className="flex items-center gap-4">
               {/* Notification Bell */}
-              <button className="relative p-2.5 hover:bg-white/10 rounded-full transition">
-                <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
-                </svg>
-                {/* Red dot indicator - only shown when there are notifications */}
-                {false && <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></div>}
-              </button>
-              
+              <NotificationsPopover>
+                <button className="relative p-2.5 hover:bg-white/10 rounded-full transition text-white">
+                  <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+                  </svg>
+                </button>
+              </NotificationsPopover>
+
               {/* Avatar */}
               <Link to="/student/profile">
                 <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-lg">
@@ -548,7 +591,7 @@ function StudentDashboard() {
               <div className="w-px h-12 bg-gray-200/50"></div>
 
               {/* Button Lihat Peringkat */}
-              <Link 
+              <Link
                 to="/student/leaderboard"
                 className="bg-[#1E258F] hover:bg-[#161d6f] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg transition flex-shrink-0"
               >
@@ -592,7 +635,7 @@ function StudentDashboard() {
 
         {/* Progress Bar */}
         <div className="bg-gray-200 rounded-full h-3 overflow-hidden">
-          <div 
+          <div
             className="bg-[#4450FF] h-full rounded-full transition-all duration-700"
             style={{ width: `${calculateLevelProgress()}%` }}
           />
@@ -603,8 +646,8 @@ function StudentDashboard() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-gray-900 text-xl font-semibold">Pelajaran Kamu</h2>
-          <Link 
-            to="/student/chapters" 
+          <Link
+            to={`/student/class/${selectedClassId || classList?.[0]?.class_id}`}
             className="text-[#4450FF] text-sm font-semibold hover:underline flex items-center gap-1"
           >
             Lihat Semua
@@ -618,25 +661,23 @@ function StudentDashboard() {
         <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
           <div className="flex gap-3 pb-2">
             {chapters.slice(0, 2).map((chapter, index) => (
-              <div 
+              <div
                 key={chapter.id}
-                className={`bg-white rounded-xl shadow-md border border-gray-100 p-4 flex-shrink-0 w-[280px] ${
-                  chapter.isLocked ? 'opacity-60' : 'hover:shadow-lg cursor-pointer'
-                } transition`}
-                onClick={() => !chapter.isLocked && navigate(`/student/chapters/${chapter.id}`)}
+                className={`bg-white rounded-xl shadow-md border border-gray-100 p-4 flex-shrink-0 w-[280px] ${chapter.isLocked ? 'opacity-60' : 'hover:shadow-lg cursor-pointer'
+                  } transition`}
+                onClick={() => !chapter.isLocked && navigate(`/student/class/${selectedClassId || classList?.[0]?.class_id}`, { state: { targetChapterId: chapter.id } })}
               >
                 {/* Icon & Title */}
                 <div className="flex items-start gap-3 mb-3">
-                  <div className={`w-12 h-12 rounded-xl ${
-                    chapter.isLocked 
-                      ? 'bg-gray-200' 
-                      : 'bg-lime-500'
-                  } flex items-center justify-center shadow-md flex-shrink-0 text-xl`}>
+                  <div className={`w-12 h-12 rounded-xl ${chapter.isLocked
+                    ? 'bg-gray-200'
+                    : 'bg-lime-500'
+                    } flex items-center justify-center shadow-md flex-shrink-0 text-xl`}>
                     {chapter.isLocked ? '🔒' : '📗'}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h3 className={`font-bold text-sm mb-0.5 ${chapter.isLocked ? 'text-gray-400' : 'text-gray-900'} line-clamp-2`}>
+                    <h3 className={`font-medium text-sm mb-0.5 ${chapter.isLocked ? 'text-gray-400' : 'text-gray-900'} line-clamp-2`}>
                       {chapter.title || 'Chapter Title'}
                     </h3>
                     {chapter.isLocked && (
@@ -657,7 +698,7 @@ function StudentDashboard() {
 
                 {/* Progress Bar */}
                 <div className="bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full rounded-full ${chapter.isLocked ? 'bg-gray-300' : 'bg-blue-500'}`}
                     style={{ width: `${chapter.percentage || 0}%` }}
                   />
@@ -672,11 +713,11 @@ function StudentDashboard() {
       {/* Informasi Section - Carousel */}
       <div className="mb-6">
         <h2 className="text-gray-900 text-xl font-semibold mb-4">Informasi</h2>
-        
+
         {/* Carousel Container */}
         <div className="relative">
           {/* Cards Wrapper with horizontal scroll */}
-          <div 
+          <div
             ref={carouselRef}
             className="overflow-x-auto scrollbar-hide snap-x snap-mandatory"
             onScroll={(e) => {
@@ -688,7 +729,7 @@ function StudentDashboard() {
           >
             <div className="flex gap-4 pb-2">
               {informationCards.map((card, index) => (
-                <div 
+                <div
                   key={card.id}
                   className="flex-shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-11px)] snap-start"
                 >
@@ -735,11 +776,10 @@ function StudentDashboard() {
                     })
                   }
                 }}
-                className={`transition-all duration-300 rounded-full ${
-                  activeInfoSlide === index 
-                    ? 'w-8 h-2 bg-[#4450FF]' 
-                    : 'w-2 h-2 bg-gray-300 hover:bg-gray-400'
-                }`}
+                className={`transition-all duration-300 rounded-full ${activeInfoSlide === index
+                  ? 'w-8 h-2 bg-[#4450FF]'
+                  : 'w-2 h-2 bg-gray-300 hover:bg-gray-400'
+                  }`}
                 aria-label={`Go to slide ${index + 1}`}
               />
             ))}

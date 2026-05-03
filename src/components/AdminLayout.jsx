@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { toast } from '@/hooks/use-toast'
 import { ActivityLogger } from '../lib/activityLogger'
+import { presenceService } from '../lib/presenceService'
 import { Avatar, AvatarImage, AvatarFallback, AvatarBadge } from '@/components/ui/avatar'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import logo1 from '../assets/logo/1.png'
@@ -13,7 +14,7 @@ const menuItems = [
   { label: 'Motivational', path: '/admin/motivational-messages', icon: 'message' },
   { label: 'Announcements', path: '/admin/announcements', icon: 'megaphone' },
   { label: 'Activity Logs', path: '/admin/activity-logs', icon: 'logs' },
-  { label: 'Settings', path: '/admin/settings', icon: 'settings' }
+  { label: 'Profile', path: '/admin/settings', icon: 'settings' }
 ]
 
 const Icon = ({ name, className = "w-5 h-5" }) => {
@@ -59,10 +60,16 @@ export default function AdminLayout({ children, title = 'Dashboard' }) {
   const handleLogoutClick = () => setLogoutDialogOpen(true)
   
   const handleLogoutConfirm = async () => {
-    await ActivityLogger.logout()
-    await supabase.auth.signOut()
-    toast({ title: 'Logout', description: 'Anda telah logout' })
-    navigate('/login')
+    try {
+      await ActivityLogger.logout()
+      await presenceService.disconnect()
+      await supabase.auth.signOut()
+      toast({ title: 'Logout', description: 'Anda telah logout' })
+      navigate('/login')
+    } catch (error) {
+      console.error('Logout error:', error)
+      toast({ title: 'Error', description: 'Gagal logout' })
+    }
   }
 
   return (

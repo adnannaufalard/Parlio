@@ -19,6 +19,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
+import { ActivityLogger } from '../lib/activityLogger'
+import { presenceService } from '../lib/presenceService'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import Logo1 from '../assets/logo/1.png'
 import { 
@@ -166,6 +169,8 @@ export default function StudentLayout({
    */
   const handleLogout = async () => {
     try {
+      await ActivityLogger.logout()
+      await presenceService.disconnect()
       await supabase.auth.signOut()
       try {
         localStorage.removeItem('parlio_active_user_id')
@@ -343,22 +348,7 @@ export default function StudentLayout({
               )}
             </nav>
 
-            {/* Testing Button - DEV ONLY (Sidebar) */}
-            <div className={`px-3 pb-2 ${sidebarExpanded ? '' : 'flex justify-center'}`}>
-              <Link 
-                to="/student/testing"
-                className={`
-                  flex items-center gap-3 px-3 py-3 rounded-xl bg-yellow-50 text-yellow-800 border border-yellow-200 hover:shadow-md transition-all
-                  ${sidebarExpanded ? '' : 'justify-center'}
-                `}
-                title={!sidebarExpanded ? 'Testing Panel' : undefined}
-              >
-                <span className="text-lg">🧪</span>
-                {sidebarExpanded && (
-                  <span className="text-sm font-bold whitespace-nowrap">Testing Panel</span>
-                )}
-              </Link>
-            </div>
+
 
             {/* Logout Button */}
             <div className={`px-3 pb-4 border-t border-gray-200 pt-4 ${sidebarExpanded ? '' : 'flex justify-center'}`}>

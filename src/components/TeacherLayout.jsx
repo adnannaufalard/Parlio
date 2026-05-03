@@ -17,6 +17,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { ActivityLogger } from '../lib/activityLogger'
+import { presenceService } from '../lib/presenceService'
 import Logo1 from '../assets/logo/1.png'
 import { 
   LayoutDashboard, 
@@ -130,6 +132,8 @@ export default function TeacherLayout({ children, rightPanel, showRightPanel = f
    */
   const handleLogout = async () => {
     try {
+      await ActivityLogger.logout()
+      await presenceService.disconnect()
       await supabase.auth.signOut()
       try {
         localStorage.removeItem('parlio_active_user_id')

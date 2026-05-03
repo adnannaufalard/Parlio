@@ -14,7 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { toast } from '@/hooks/use-toast'
-import { Lock, Camera, Save, Loader2, Award, Settings, LogOut, Crop, X, BarChart3, ChevronRight } from 'lucide-react'
+import { Lock, Camera, Save, Loader2, Award, Settings, LogOut, Crop, X, BarChart3, ChevronRight, Trophy } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
@@ -55,7 +55,7 @@ export default function StudentProfile() {
     confirmPassword: ''
   })
   const fileInputRef = useRef(null)
-  
+
   // Crop states
   const [cropDialogOpen, setCropDialogOpen] = useState(false)
   const [imageSrc, setImageSrc] = useState('')
@@ -148,33 +148,33 @@ export default function StudentProfile() {
 
       // Get lesson IDs from attempts
       const lessonIds = [...new Set(attempts?.map(a => a.quests?.lesson_id).filter(Boolean) || [])]
-      
+
       // Fetch lessons with chapter info
       let lessonsMap = {}
       let chaptersMap = {}
-      
+
       if (lessonIds.length > 0) {
         // First get lessons
         const { data: lessonsData } = await supabase
           .from('lessons')
           .select('id, title, chapter_id')
           .in('id', lessonIds)
-        
+
         // Get unique chapter IDs
         const chapterIds = [...new Set(lessonsData?.map(l => l.chapter_id).filter(Boolean) || [])]
-        
+
         // Fetch chapters
         if (chapterIds.length > 0) {
           const { data: chaptersData } = await supabase
             .from('chapters')
             .select('id, title')
             .in('id', chapterIds)
-          
+
           chaptersData?.forEach(c => {
             chaptersMap[c.id] = c.title
           })
         }
-        
+
         // Build lessons map with chapter titles
         lessonsData?.forEach(l => {
           lessonsMap[l.id] = {
@@ -244,12 +244,12 @@ export default function StudentProfile() {
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      
+
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ full_name: formData.fullName })
         .eq('id', user.id)
-      
+
       if (profileError) throw profileError
 
       if (formData.email !== user.email) {
@@ -268,7 +268,7 @@ export default function StudentProfile() {
 
   const handleUpdatePassword = async (e) => {
     e.preventDefault()
-    
+
     if (formData.newPassword !== formData.confirmPassword) {
       toast({ title: 'Gagal', description: 'Password baru tidak cocok', variant: 'destructive' })
       return
@@ -324,14 +324,14 @@ export default function StudentProfile() {
     const canvas = document.createElement('canvas')
     const scaleX = image.naturalWidth / image.width
     const scaleY = image.naturalHeight / image.height
-    
+
     const pixelRatio = window.devicePixelRatio || 1
     const cropWidth = completedCrop.width * scaleX
     const cropHeight = completedCrop.height * scaleY
-    
+
     canvas.width = cropWidth * pixelRatio
     canvas.height = cropHeight * pixelRatio
-    
+
     const ctx = canvas.getContext('2d')
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
     ctx.imageSmoothingQuality = 'high'
@@ -506,11 +506,10 @@ export default function StudentProfile() {
             <button
               key={item.id}
               onClick={() => setActiveSection(item.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeSection === item.id
-                  ? 'border-slate-900 text-slate-900'
-                  : 'border-transparent text-gray-400 hover:text-gray-600'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeSection === item.id
+                ? 'border-slate-900 text-slate-900'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+                }`}
             >
               <item.icon className="h-4 w-4" />
               {item.label}
@@ -528,8 +527,8 @@ export default function StudentProfile() {
                 <span className="text-xs text-gray-500">Level {stats.level} → {stats.level + 1}</span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-3 mb-2">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all" 
+                <div
+                  className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all"
                   style={{ width: `${(stats.xp % 100)}%` }}
                 />
               </div>
@@ -589,10 +588,9 @@ export default function StudentProfile() {
                                     </div>
                                     <div className="flex items-center justify-between mt-0.5">
                                       <span className="text-xs text-gray-600">Persentase</span>
-                                      <span className={`text-sm font-bold ${
-                                        data.score >= 75 ? 'text-emerald-600' :
+                                      <span className={`text-sm font-bold ${data.score >= 75 ? 'text-emerald-600' :
                                         data.score >= 50 ? 'text-amber-600' : 'text-red-600'
-                                      }`}>
+                                        }`}>
                                         {data.score}%
                                       </span>
                                     </div>
@@ -627,16 +625,16 @@ export default function StudentProfile() {
 
         {/* Pencapaian Section */}
         {activeSection === 'pencapaian' && (
-          <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 space-y-10">
             {/* Achievement Badges Section */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Award className="h-5 w-5 text-blue-500" />
-                <h2 className="text-lg font-bold text-gray-900">Badge Penyelesaian Bab</h2>
+              <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
+                <Award className="h-5 w-5 text-gray-400" />
+                <h2 className="text-lg font-semibold text-gray-900 font-['Poppins']">Badge Penyelesaian Bab</h2>
               </div>
 
               {achievementBadges && achievementBadges.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                   {achievementBadges.map((badge) => {
                     const badgeImages = [
                       null,
@@ -648,24 +646,25 @@ export default function StudentProfile() {
                     ]
                     const badgeImage = badgeImages[badge.badge_level] || uniteOne
                     const chapterName = badge.chapter?.title || `Bab ${badge.badge_level}`
-                    
+
                     return (
-                      <div 
+                      <div
                         key={badge.id}
-                        className="flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-200 hover:shadow-lg transition-all"
+                        className="flex flex-col items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors group"
                         title={chapterName}
                       >
-                        <img 
-                          src={badgeImage} 
+                        <img
+                          src={badgeImage}
                           alt={chapterName}
-                          className="h-16 w-16 object-contain drop-shadow-md"
+                          className="h-24 w-24 object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-300"
                         />
-                        <div className="text-center">
-                          <p className="text-xs font-semibold text-blue-900 line-clamp-2">{chapterName}</p>
-                          <p className="text-xs text-blue-600 mt-1">
-                            {new Date(badge.awarded_at).toLocaleDateString('id-ID', { 
-                              day: 'numeric', 
-                              month: 'short'
+                        <div className="text-center w-full">
+                          <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight font-['Poppins']">{chapterName}</p>
+                          <p className="text-xs text-gray-500 mt-1.5 font-medium font-['Poppins']">
+                            {new Date(badge.awarded_at).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
                             })}
                           </p>
                         </div>
@@ -674,10 +673,10 @@ export default function StudentProfile() {
                   })}
                 </div>
               ) : (
-                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6 text-center border border-blue-200">
-                  <div className="text-4xl mb-3">🏆</div>
-                  <h3 className="text-sm font-semibold text-blue-900 mb-1">Belum Ada Badge</h3>
-                  <p className="text-xs text-blue-700">
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                  <div className="text-5xl mb-4 opacity-30 grayscale">🏆</div>
+                  <h3 className="text-base font-semibold text-gray-700 mb-1 font-['Poppins']">Belum Ada Badge</h3>
+                  <p className="text-sm text-gray-500 max-w-sm font-['Poppins']">
                     Selesaikan semua sub bab pada setiap bab untuk mendapatkan badge!
                   </p>
                 </div>
@@ -686,85 +685,86 @@ export default function StudentProfile() {
 
             {/* Leaderboard Badges Section */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Award className="h-5 w-5 text-amber-500" />
-                <h2 className="text-lg font-bold text-gray-900">Pencapaian Periode</h2>
+              <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
+                <Trophy className="h-5 w-5 text-gray-400" />
+                <h2 className="text-lg font-semibold text-gray-900 font-['Poppins']">Pencapaian Periode</h2>
               </div>
 
               {leaderboardBadges.length > 0 ? (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {leaderboardBadges.map((badge) => {
-                    const style = getRankStyle(badge.rank)
                     const rankText = badge.rank === 1 ? 'Juara 1' : badge.rank === 2 ? 'Juara 2' : 'Juara 3'
                     const scopeText = badge.leaderboard_settings?.class_id ? 'Leaderboard Kelas' : 'Leaderboard Global'
-                    
+
                     return (
-                      <div 
-                        key={badge.id} 
-                        className={`${style.bg} ${style.border} border rounded-2xl p-4 shadow-md ${style.shadow} transition-all hover:scale-[1.02] animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                      <div
+                        key={badge.id}
+                        className="flex items-center gap-4 p-5 hover:bg-gray-50 rounded-2xl transition-colors border border-transparent hover:border-gray-100 group"
                       >
-                        <div className="flex items-center gap-4">
-                          {/* Badge Image */}
-                          <div className="relative">
-                            <div className="absolute inset-0 bg-white/50 rounded-full blur-sm"></div>
-                            <img 
-                              src={getBadgeImg(badge.rank)} 
-                              alt={rankText} 
-                              className="h-16 w-16 object-contain relative z-10 drop-shadow-md" 
-                            />
-                          </div>
-                          
-                          {/* Badge Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className={`text-lg font-bold ${style.text}`}>{rankText}</h3>
-                              {badge.rank === 1 && <span className="text-yellow-500">👑</span>}
-                            </div>
-                            <p className="text-sm font-medium text-gray-700 truncate">
-                              {badge.leaderboard_settings?.period_name || 'Periode'}
-                            </p>
-                            <p className="text-xs text-gray-500">{scopeText}</p>
-                          </div>
-                          
-                          {/* Date & XP */}
-                          <div className="text-right">
-                            <p className="text-xs font-medium text-gray-600">
-                              {new Date(badge.awarded_at).toLocaleDateString('id-ID', { 
-                                day: 'numeric', 
-                                month: 'short', 
-                                year: 'numeric' 
-                              })}
-                            </p>
-                            {badge.xp_at_end > 0 && (
-                              <p className="text-xs text-purple-600 font-semibold mt-1">
-                                {badge.xp_at_end} XP
-                              </p>
-                            )}
-                          </div>
+                        <div className="relative shrink-0">
+                          <img
+                            src={getBadgeImg(badge.rank)}
+                            alt={rankText}
+                            className="h-16 w-16 object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-300"
+                          />
                         </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-bold text-gray-900 font-['Poppins'] truncate">
+                            {badge.leaderboard_settings?.period_name || 'Periode'}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-md font-['Poppins'] ${
+                              badge.rank === 1 ? 'bg-amber-100 text-amber-800' :
+                              badge.rank === 2 ? 'bg-gray-200 text-gray-800' :
+                              'bg-orange-100 text-orange-800'
+                            }`}>
+                              {rankText}
+                            </span>
+                            {badge.rank === 1 && <span className="text-amber-500 text-xs">👑</span>}
+                          </div>
+                          
+                          <p className="text-xs text-gray-500 mt-2 font-medium font-['Poppins'] truncate">
+                            {scopeText}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5 font-['Poppins']">
+                            {new Date(badge.awarded_at).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                        
+                        {badge.xp_at_end > 0 && (
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-bold text-gray-900 font-['Poppins']">
+                              {badge.xp_at_end}
+                            </p>
+                            <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 font-['Poppins']">
+                              XP
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
                 </div>
               ) : (
                 /* Empty State */
-                <div className="bg-gradient-to-br from-gray-50 to-slate-100 rounded-2xl p-8 text-center border border-gray-200">
-                  <div className="relative w-20 h-20 mx-auto mb-4">
-                    <div className="absolute inset-0 bg-gray-200 rounded-full animate-pulse"></div>
-                    <Award className="h-12 w-12 text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                  <div className="relative w-20 h-20 mx-auto mb-4 opacity-50 grayscale">
+                    <Award className="h-12 w-12 text-gray-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Belum Ada Pencapaian</h3>
-                  <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                  <h3 className="text-base font-semibold text-gray-700 mb-1 font-['Poppins']">Belum Ada Pencapaian</h3>
+                  <p className="text-sm text-gray-500 max-w-sm font-['Poppins']">
                     Pencapaian akan muncul setelah kamu meraih peringkat di leaderboard saat periode berakhir.
                   </p>
-                  <div className="flex items-center justify-center gap-2 mt-4 p-3 bg-white rounded-xl border border-gray-200">
-                    <img src={badge1} alt="Badge 1" className="h-8 w-8 opacity-40" />
-                    <img src={badge2} alt="Badge 2" className="h-7 w-7 opacity-40" />
-                    <img src={badge3} alt="Badge 3" className="h-6 w-6 opacity-40" />
+                  <div className="flex items-center justify-center gap-3 mt-6">
+                    <img src={badge1} alt="Badge 1" className="h-10 w-10 opacity-30 drop-shadow-sm" />
+                    <img src={badge2} alt="Badge 2" className="h-8 w-8 opacity-30 drop-shadow-sm" />
+                    <img src={badge3} alt="Badge 3" className="h-8 w-8 opacity-30 drop-shadow-sm" />
                   </div>
-                  <p className="text-xs text-gray-400 mt-3">
-                    Raih Top 3 di leaderboard untuk mendapatkan badge!
-                  </p>
                 </div>
               )}
             </div>
@@ -844,7 +844,7 @@ export default function StudentProfile() {
             </div>
 
             {/* Logout */}
-            <button 
+            <button
               onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2 py-3 text-red-600 hover:text-red-700 text-sm font-medium transition"
             >

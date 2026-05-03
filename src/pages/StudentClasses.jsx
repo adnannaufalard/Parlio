@@ -11,6 +11,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from '@/hooks/use-toast'
 import { Plus, Users, BookOpen, User, Loader2, LogOut, Info } from 'lucide-react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
+import { NotificationService } from '../lib/notificationService'
+import { logActivity } from '../lib/activityLogger'
 
 function StudentClasses() {
   const navigate = useNavigate()
@@ -124,7 +126,7 @@ function StudentClasses() {
 
       if (classError) {
         console.error('Error finding class:', classError)
-        
+
         // Check if it's a permissions/RLS error
         if (classError.code === 'PGRST116' || classError.message.includes('policy')) {
           toast({ title: 'Error', description: 'Tidak dapat mengakses data kelas. Hubungi administrator.', variant: 'destructive' })
@@ -168,7 +170,7 @@ function StudentClasses() {
 
       if (joinError) {
         console.error('Error joining class:', joinError)
-        
+
         if (joinError.code === '42501' || joinError.message.includes('policy')) {
           toast({ title: 'Error', description: 'Tidak dapat bergabung ke kelas. Hubungi administrator.', variant: 'destructive' })
           console.error('⚠️ RLS Policy Error: Table class_members butuh policy untuk INSERT')
@@ -180,10 +182,36 @@ function StudentClasses() {
         return
       }
 
+      // Log activity
+      const { data: profile } = await supabase.from('profiles').select('full_name, email, role').eq('id', user.id).single()
+      if (profile) {
+        await logActivity(
+          user.id,
+          profile.email,
+          profile.full_name,
+          profile.role,
+          `Bergabung ke kelas ${classData.class_name}`,
+          'create',
+          'class',
+          classData.id,
+          classData.class_name,
+          { class_code: classData.class_code }
+        )
+      }
+
+      // Create notification
+      await NotificationService.createNotification({
+        userId: user.id,
+        title: 'Berhasil Bergabung',
+        message: `Anda telah berhasil bergabung ke kelas ${classData.class_name}`,
+        type: 'success',
+        link: `/student/class/${classData.id}`
+      })
+
       toast({ title: 'Berhasil', description: `Bergabung ke kelas "${classData.class_name}"` })
       setShowJoinModal(false)
       setClassCode('')
-      
+
       // Navigate to class chapters page
       navigate(`/student/class/${classData.id}`)
     } catch (error) {
@@ -265,7 +293,7 @@ function StudentClasses() {
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-800 mb-3">{classItem.class_name}</h3>
-                      
+
                       <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mb-3">
                         <span className="flex items-center gap-1.5">
                           <User className="h-4 w-4" />
@@ -287,11 +315,11 @@ function StudentClasses() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button 
+                      <Button
                         onClick={() => navigate(`/student/class/${classItem.id}`)}
                         className="flex-1 sm:flex-none bg-[#1E258F] text-white hover:bg-blue-700"
                       >
-                        Lihat Pelajaran
+                        Lihat Kelas
                       </Button>
                       <Button
                         variant="outline"
@@ -318,7 +346,7 @@ function StudentClasses() {
               Masukkan kode kelas yang diberikan oleh guru Anda
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-lg">
               <div className="flex items-start gap-2">

@@ -228,7 +228,7 @@ export default function StudentMaterialDetail() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
-          
+
           <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs font-semibold tracking-wide text-gray-400 font-['Poppins']">
             {breadcrumbs.className && (
               <>
@@ -303,12 +303,11 @@ export default function StudentMaterialDetail() {
                 <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md font-['Poppins']">{allMedia.length} file</span>
               </div>
               <div className="p-4">
-                <div className={`grid gap-3 ${
-                  allMedia.length === 1 ? 'grid-cols-1 max-w-xs' :
+                <div className={`grid gap-3 ${allMedia.length === 1 ? 'grid-cols-1 max-w-xs' :
                   allMedia.length === 2 ? 'grid-cols-2' :
-                  allMedia.length === 3 ? 'grid-cols-3' :
-                  'grid-cols-3 sm:grid-cols-4'
-                }`}>
+                    allMedia.length === 3 ? 'grid-cols-3' :
+                      'grid-cols-3 sm:grid-cols-4'
+                  }`}>
                   {allMedia.map((media, idx) => (
                     <MediaThumb key={idx} media={media} />
                   ))}
@@ -336,7 +335,7 @@ export default function StudentMaterialDetail() {
                   <div className="p-4 border-b border-gray-100 bg-white">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${questCompleted ? 'bg-green-100' : 'bg-indigo-100'}`}>
-                        {questCompleted ? '✅' : '🎯'}
+                        {questCompleted ? '✔️' : '🎯'}
                       </div>
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 font-['Poppins'] line-clamp-2">{quest.title}</h3>
@@ -371,13 +370,12 @@ export default function StudentMaterialDetail() {
                     {canAttempt ? (
                       <button
                         onClick={() => setShowQuestConfirm(true)}
-                        className={`w-full mt-4 py-3 px-4 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 font-['Poppins'] text-sm shadow-sm active:scale-[0.97] ${
-                          questCompleted
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-green-200'
-                            : 'bg-gradient-to-r from-[#1E258F] to-[#3b44c2] hover:from-[#161d6f] hover:to-[#2a32a8] text-white shadow-indigo-200'
-                        }`}
+                        className={`w-full mt-4 py-3 px-4 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 font-['Poppins'] text-sm shadow-sm active:scale-[0.97] ${questCompleted
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-green-200'
+                          : 'bg-gradient-to-r from-[#1E258F] to-[#3b44c2] hover:from-[#161d6f] hover:to-[#2a32a8] text-white shadow-indigo-200'
+                          }`}
                       >
-                        <span className="text-base">{questCompleted ? '🔄' : '⚡'}</span>
+                        <span className="text-base">{questCompleted ? '' : '⚡'}</span>
                         <span>{questCompleted ? 'Kerjakan Lagi' : 'Kerjakan Quest'}</span>
                       </button>
                     ) : (

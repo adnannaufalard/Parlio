@@ -74,8 +74,8 @@ function TeacherDashboard() {
   const [stats, setStats] = useState({
     totalClasses: 0,
     totalStudents: 0,
-    totalChapters: 0,
-    totalQuests: 0
+    totalBab: 0,
+    totalSubBab: 0
   })
   const [recentClasses, setRecentClasses] = useState([])
   const [recentActivities, setRecentActivities] = useState([])
@@ -132,18 +132,19 @@ function TeacherDashboard() {
       )
 
       const totalStudents = classesWithStudents.reduce((sum, c) => sum + c.studentCount, 0)
-      const totalChapters = classesWithStudents.reduce((sum, c) => sum + c.chapterCount, 0)
-
-      const { count: questCount } = await supabase
-        .from('quests')
+      const { count: totalBab } = await supabase
+        .from('chapters')
         .select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id)
+
+      const { count: totalSubBab } = await supabase
+        .from('lessons')
+        .select('*', { count: 'exact', head: true })
 
       setStats({
         totalClasses: classes?.length || 0,
         totalStudents,
-        totalChapters,
-        totalQuests: questCount || 0
+        totalBab: totalBab || 0,
+        totalSubBab: totalSubBab || 0
       })
 
       setRecentClasses(classesWithStudents.slice(0, 4))
@@ -304,6 +305,35 @@ function TeacherDashboard() {
         })
       })
 
+      // 7. Forum Activities (Topics & Replies)
+      if (classIds.length > 0) {
+        const { data: forumPosts } = await supabase
+          .from('class_forum_posts')
+          .select('id, class_id, parent_id, content, created_at, author:profiles!class_forum_posts_user_id_fkey(full_name)')
+          .in('class_id', classIds)
+          .order('created_at', { ascending: false })
+          .limit(20)
+        
+        ;(forumPosts || []).forEach(post => {
+          const className = classMap[post.class_id]
+          const authorName = post.author?.full_name || 'Siswa'
+          const isReply = post.parent_id !== null
+
+          if (className) {
+            allActivities.push({
+              id: `forum_${post.id}`,
+              type: isReply ? 'forum_reply' : 'forum_created',
+              title: isReply ? `${authorName} membalas komentar di forum` : `${authorName} membuat diskusi baru`,
+              subtitle: `💬 di kelas ${className}`,
+              time: post.created_at,
+              icon: 'user',
+              color: 'blue',
+              link: `/teacher/classes/${post.class_id}?tab=forum#comment-${post.id}`
+            })
+          }
+        })
+      }
+
       // Sort all activities by time and take top 15
       allActivities.sort((a, b) => new Date(b.time) - new Date(a.time))
       const formattedActivities = allActivities.slice(0, 15).map(activity => ({
@@ -374,7 +404,10 @@ function TeacherDashboard() {
               {recentActivities.map((activity) => (
                 <div
                   key={activity.id}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
+                  className={`flex items-start gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors ${activity.link ? 'cursor-pointer hover:bg-blue-50' : ''}`}
+                  onClick={() => {
+                    if (activity.link) navigate(activity.link)
+                  }}
                 >
                   <div className={`p-2 rounded-lg flex-shrink-0 ${getColorClass(activity.color)}`}>
                     <Icon name={activity.icon} className="h-4 w-4" />
@@ -464,26 +497,26 @@ function TeacherDashboard() {
             <p className="text-sm text-slate-500 mt-1">Total Siswa</p>
           </div>
 
-          {/* Total Chapter */}
+          {/* Total Bab */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2.5 rounded-xl bg-amber-100">
                 <Icon name="chapter" className="h-5 w-5 text-amber-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-800">{stats.totalChapters}</p>
-            <p className="text-sm text-slate-500 mt-1">Total Pelajaran</p>
+            <p className="text-2xl font-bold text-slate-800">{stats.totalBab}</p>
+            <p className="text-sm text-slate-500 mt-1">Total Bab</p>
           </div>
 
-          {/* Total Quest */}
+          {/* Total Sub Bab */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2.5 rounded-xl bg-purple-100">
                 <Icon name="quest" className="h-5 w-5 text-purple-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-800">{stats.totalQuests}</p>
-            <p className="text-sm text-slate-500 mt-1">Total Quest</p>
+            <p className="text-2xl font-bold text-slate-800">{stats.totalSubBab}</p>
+            <p className="text-sm text-slate-500 mt-1">Total Sub Bab</p>
           </div>
         </div>
 

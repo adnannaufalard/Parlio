@@ -8,17 +8,25 @@ import { Avatar, AvatarImage, AvatarFallback, AvatarBadge } from '@/components/u
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
 import { Users, GraduationCap, BookOpen, Megaphone, MessageSquare, Activity, TrendingUp } from 'lucide-react'
+import { presenceService } from '../lib/presenceService'
 
 function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ totalUsers: 0, totalTeachers: 0, totalStudents: 0, totalClasses: 0, activeAnnouncements: 0, activeMotivationalMessages: 0 })
   const [recentActivities, setRecentActivities] = useState([])
   const [recentUsers, setRecentUsers] = useState([])
+  const [onlineUsers, setOnlineUsers] = useState([])
   const [usersByDate, setUsersByDate] = useState([])
   const [activitiesByType, setActivitiesByType] = useState([])
   const [lastActivity, setLastActivity] = useState({})
 
-  useEffect(() => { fetchDashboardData() }, [])
+  useEffect(() => { 
+    fetchDashboardData() 
+    const unsubscribe = presenceService.subscribe((users) => {
+      setOnlineUsers(users)
+    })
+    return () => unsubscribe()
+  }, [])
 
   const fetchDashboardData = async () => {
     try {
@@ -28,11 +36,11 @@ function AdminDashboard() {
         supabase.from('classes').select('id', { count: 'exact', head: true }),
         supabase.from('announcements').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('motivational_messages').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('activity_logs').select('*, profiles:user_id(avatar_url)').order('created_at', { ascending: false }).limit(6),
+        supabase.from('activity_logs').select('*, profiles:user_id(avatar_url)').neq('user_role', 'admin').order('created_at', { ascending: false }).limit(6),
         supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(5),
         supabase.from('profiles').select('created_at').order('created_at', { ascending: true }),
-        supabase.from('activity_logs').select('action_type, created_at'),
-        supabase.from('activity_logs').select('user_id, created_at').eq('action_type', 'auth').order('created_at', { ascending: false })
+        supabase.from('activity_logs').select('action_type, created_at').neq('user_role', 'admin'),
+        supabase.from('activity_logs').select('user_id, created_at').eq('action_type', 'auth').neq('user_role', 'admin').order('created_at', { ascending: false })
       ])
 
       const users = usersResult.data || []
@@ -250,29 +258,40 @@ function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Users */}
+        {/* Online Users */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">User Terbaru</CardTitle>
-              <Link to="/admin/users" className="text-xs text-muted-foreground hover:text-foreground">Lihat Semua</Link>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                User Online ({onlineUsers.length})
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentUsers.map((user) => (
-              <div key={user.id} className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.avatar_url} alt={user.full_name} />
-                  <AvatarFallback className="bg-slate-800 text-white text-sm font-medium">{user.full_name?.charAt(0)?.toUpperCase() || '?'}</AvatarFallback>
-                  <AvatarBadge className={isUserActive(user.id) ? 'bg-green-500' : 'bg-gray-400'} />
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user.full_name || 'No Name'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            {onlineUsers.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-6">Tidak ada user online</p>
+            ) : (
+              onlineUsers.map((user) => (
+                <div key={user.user_id} className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user.avatar_url} alt={user.full_name} />
+                    <AvatarFallback className="bg-slate-800 text-white text-sm font-medium">{user.full_name?.charAt(0)?.toUpperCase() || '?'}</AvatarFallback>
+                    <AvatarBadge className="bg-green-500" />
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{user.full_name || 'No Name'}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      Online sejak {new Date(user.online_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <Badge variant="outline">{user.role}</Badge>
                 </div>
-                <Badge variant="outline">{user.role}</Badge>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

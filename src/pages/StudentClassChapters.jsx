@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import StudentLayout from '../components/StudentLayout'
 import UserInfoHeader from '../components/UserInfoHeader'
 import toast from 'react-hot-toast'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { ForumCommentItem } from '../components/ForumCommentItem'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { logActivity } from '../lib/activityLogger'
+import { NotificationService } from '../lib/notificationService'
 
 function StudentClassChapters() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { classId } = useParams()
   const [loading, setLoading] = useState(true)
   const [classData, setClassData] = useState(null)
@@ -20,6 +25,10 @@ function StudentClassChapters() {
   const [leaderboardData, setLeaderboardData] = useState([])
   const [newComment, setNewComment] = useState('')
   const [postingComment, setPostingComment] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState(null)
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editingCommentContent, setEditingCommentContent] = useState('')
+  const [forumPostToDelete, setForumPostToDelete] = useState(null)
   const [collapsedChapterIds, setCollapsedChapterIds] = useState([])
   const [selectedLessonId, setSelectedLessonId] = useState(null)
 
@@ -41,6 +50,34 @@ function StudentClassChapters() {
     }
   }, [activeTab, classId])
 
+  // Effect for handling URL ?tab parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const tabParam = params.get('tab')
+    if (tabParam) {
+      setActiveTab(tabParam)
+    }
+  }, [location.search])
+
+  // Effect for handling scroll to comment hash
+  useEffect(() => {
+    if (activeTab === 'forum' && forumPosts.length > 0 && location.hash) {
+      const hashId = location.hash.substring(1)
+      if (hashId.startsWith('comment-')) {
+        setTimeout(() => {
+          const element = document.getElementById(hashId)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            element.classList.add('bg-blue-50')
+            setTimeout(() => {
+              element.classList.remove('bg-blue-50')
+            }, 2000)
+          }
+        }, 300)
+      }
+    }
+  }, [activeTab, forumPosts, location.hash])
+
   // No longer using gradient colors - using white cards instead
 
   const fetchClassChapters = async () => {
@@ -52,6 +89,8 @@ function StudentClassChapters() {
         setLoading(false)
         return
       }
+
+      setCurrentUserId(user.id)
 
       // Get class info
       const { data: classInfo, error: classError } = await supabase
@@ -116,12 +155,12 @@ function StudentClassChapters() {
         .in('chapter_id', chapterIds)
 
       const lessonsByChapter = {}
-      ;(lessonsData || []).forEach((lesson) => {
-        if (!lessonsByChapter[lesson.chapter_id]) {
-          lessonsByChapter[lesson.chapter_id] = []
-        }
-        lessonsByChapter[lesson.chapter_id].push(lesson)
-      })
+        ; (lessonsData || []).forEach((lesson) => {
+          if (!lessonsByChapter[lesson.chapter_id]) {
+            lessonsByChapter[lesson.chapter_id] = []
+          }
+          lessonsByChapter[lesson.chapter_id].push(lesson)
+        })
 
       const allLessonIds = (lessonsData || []).map(l => l.id)
 
@@ -144,12 +183,12 @@ function StudentClassChapters() {
 
       const passedQuestIds = new Set((attemptsData || []).map(a => a.quest_id))
       const questIdsByLesson = {}
-      ;(questsData || []).forEach((quest) => {
-        if (!questIdsByLesson[quest.lesson_id]) {
-          questIdsByLesson[quest.lesson_id] = []
-        }
-        questIdsByLesson[quest.lesson_id].push(quest.id)
-      })
+        ; (questsData || []).forEach((quest) => {
+          if (!questIdsByLesson[quest.lesson_id]) {
+            questIdsByLesson[quest.lesson_id] = []
+          }
+          questIdsByLesson[quest.lesson_id].push(quest.id)
+        })
 
       const chaptersWithProgress = await Promise.all(
         (assignedChapters || []).map(async (ac) => {
@@ -219,8 +258,8 @@ function StudentClassChapters() {
 
   const handleChapterClick = (chapter) => {
     // Navigate to chapter detail (lessons)
-    navigate(`/student/chapters/${chapter.id}`, { 
-      state: { chapterData: chapter, classId: classId } 
+    navigate(`/student/chapters/${chapter.id}`, {
+      state: { chapterData: chapter, classId: classId }
     })
   }
 
@@ -400,20 +439,20 @@ function StudentClassChapters() {
 
       // Calculate avg score per student
       const scoresByStudent = {}
-      ;(attempts || []).forEach(a => {
-        if (!scoresByStudent[a.student_id]) {
-          scoresByStudent[a.student_id] = { total: 0, max: 0, count: 0 }
-        }
-        scoresByStudent[a.student_id].total += a.score || 0
-        scoresByStudent[a.student_id].max += a.max_score || 0
-        scoresByStudent[a.student_id].count += 1
-      })
+        ; (attempts || []).forEach(a => {
+          if (!scoresByStudent[a.student_id]) {
+            scoresByStudent[a.student_id] = { total: 0, max: 0, count: 0 }
+          }
+          scoresByStudent[a.student_id].total += a.score || 0
+          scoresByStudent[a.student_id].max += a.max_score || 0
+          scoresByStudent[a.student_id].count += 1
+        })
 
       // Build leaderboard with class-specific scores
       const leaderboardWithScores = membersData.map(m => {
         const studentScores = scoresByStudent[m.student_id] || { total: 0, max: 0, count: 0 }
-        const avgScore = studentScores.max > 0 
-          ? Math.round((studentScores.total / studentScores.max) * 100) 
+        const avgScore = studentScores.max > 0
+          ? Math.round((studentScores.total / studentScores.max) * 100)
           : 0
         return {
           id: m.profiles.id,
@@ -448,6 +487,13 @@ function StudentClassChapters() {
 
       if (error) throw error
 
+      await logActivity({
+        action: `Mengirim komentar di forum kelas`,
+        actionType: 'create',
+        resourceType: 'forum',
+        resourceName: classData?.class_name
+      })
+
       toast.success('Komentar berhasil diposting')
       setNewComment('')
       fetchForumPosts()
@@ -456,6 +502,109 @@ function StudentClassChapters() {
       toast.error('Gagal memposting komentar')
     } finally {
       setPostingComment(false)
+    }
+  }
+
+  const handleEditForumPost = async (postId) => {
+    if (!editingCommentContent.trim()) return
+
+    try {
+      const { error } = await supabase
+        .from('class_forum_posts')
+        .update({ content: editingCommentContent.trim(), updated_at: new Date().toISOString() })
+        .eq('id', postId)
+        .eq('user_id', currentUserId) // Extra security
+
+      if (error) throw error
+
+      toast.success('Komentar berhasil diperbarui')
+      setEditingCommentId(null)
+      setEditingCommentContent('')
+      fetchForumPosts()
+    } catch (error) {
+      console.error('Error updating comment:', error)
+      toast.error('Gagal memperbarui komentar')
+    }
+  }
+
+  const handleReplyForumPost = async (parentId, content) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: newPost, error } = await supabase
+        .from('class_forum_posts')
+        .insert([{
+          class_id: classId,
+          user_id: user.id,
+          content: content.trim(),
+          parent_id: parentId
+        }])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Notify parent post owner
+      const { data: parentPost } = await supabase
+        .from('class_forum_posts')
+        .select('user_id, profiles!class_forum_posts_user_id_fkey(role)')
+        .eq('id', parentId)
+        .single()
+
+      if (parentPost && parentPost.user_id !== user.id) {
+        const { data: currentUserProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single()
+
+        const recipientRole = parentPost.profiles?.role
+        const link = recipientRole === 'guru'
+          ? `/teacher/classes/${classId}?tab=forum#comment-${newPost.id}`
+          : `/student/class/${classId}?tab=forum#comment-${newPost.id}`
+
+        await NotificationService.createNotification({
+          userId: parentPost.user_id,
+          title: 'Balasan Baru di Forum',
+          message: `${currentUserProfile?.full_name || 'Seseorang'} membalas komentar Anda di forum kelas.`,
+          type: 'forum',
+          link
+        })
+      }
+
+      await logActivity({
+        action: `Membalas komentar di forum kelas`,
+        actionType: 'create',
+        resourceType: 'forum',
+        resourceName: classData?.class_name
+      })
+
+      toast.success('Balasan berhasil diposting')
+      fetchForumPosts()
+    } catch (error) {
+      console.error('Error posting reply:', error)
+      toast.error('Gagal memposting balasan')
+    }
+  }
+
+  const handleDeleteForumPost = async () => {
+    if (!forumPostToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('class_forum_posts')
+        .delete()
+        .eq('id', forumPostToDelete)
+        .eq('user_id', currentUserId) // Extra security
+
+      if (error) throw error
+
+      toast.success('Komentar berhasil dihapus')
+      fetchForumPosts()
+    } catch (error) {
+      console.error('Error deleting comment:', error)
+      toast.error('Gagal menghapus komentar')
+    } finally {
+      setForumPostToDelete(null)
     }
   }
 
@@ -556,7 +705,7 @@ function StudentClassChapters() {
 
       {/* Tab Content */}
       {activeTab === 'pelajaran' && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-slate-50 via-white to-sky-50/70 p-4 sm:p-6">
+        <div className="relative overflow-hidden rounded-2xl bg-white p-4 sm:p-6">
           <div className="absolute inset-0 lesson-sky pointer-events-none">
             <div className="lesson-sky-layer lesson-sky-layer-1" />
             <div className="lesson-sky-layer lesson-sky-layer-2" />
@@ -569,7 +718,7 @@ function StudentClassChapters() {
             <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
               <span></span> Daftar Pelajaran
             </h3>
-          
+
             {chapters.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
                 <div className="w-48 h-48 mx-auto mb-2">
@@ -620,11 +769,10 @@ function StudentClassChapters() {
                           <span className="text-[10px] sm:text-xs font-semibold tracking-wider text-gray-400 uppercase font-['Poppins']">
                             BAB {String(chapterIndex + 1).padStart(2, '0')}
                           </span>
-                          <span className={`text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md font-['Poppins'] uppercase ${
-                            chapterStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                          <span className={`text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md font-['Poppins'] uppercase ${chapterStatus === 'completed' ? 'bg-green-100 text-green-700' :
                             chapterStatus === 'locked' ? 'bg-gray-100 text-gray-500' :
-                            'bg-indigo-100 text-[#4f46e5]'
-                          }`}>
+                              'bg-indigo-100 text-[#4f46e5]'
+                            }`}>
                             {chapterStatus === 'completed' ? 'COMPLETED' : chapterStatus === 'locked' ? 'PENDING' : 'IN PROGRESS'}
                           </span>
                         </div>
@@ -632,7 +780,7 @@ function StudentClassChapters() {
                         <h2 className={`text-base sm:text-lg font-semibold mb-1 font-['Poppins'] ${chapterStatus === 'locked' ? 'text-gray-400' : 'text-gray-900'}`}>
                           {chapter.title}
                         </h2>
-                        
+
                         <p className={`text-xs sm:text-sm mb-3 font-['Poppins'] ${chapterStatus === 'locked' ? 'text-gray-400' : 'text-gray-600'}`}>
                           {chapter.description}
                         </p>
@@ -663,11 +811,10 @@ function StudentClassChapters() {
                                 onClick={() => navigate(`/student/lesson/${lesson.id}`, {
                                   state: { classId: classId, chapterId: chapter.id }
                                 })}
-                                className={`text-left flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all ${
-                                  lessonStatus === 'completed' ? 'bg-white border-gray-200 hover:border-green-300 hover:shadow-sm' :
+                                className={`text-left flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all ${lessonStatus === 'completed' ? 'bg-white border-gray-200 hover:border-green-300 hover:shadow-sm' :
                                   lessonStatus === 'current' ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' :
-                                  'bg-white border-gray-100 opacity-60 cursor-not-allowed'
-                                }`}
+                                    'bg-white border-gray-100 opacity-60 cursor-not-allowed'
+                                  }`}
                               >
                                 <div className="flex items-center gap-3 min-w-0">
                                   {/* Icon */}
@@ -688,16 +835,15 @@ function StudentClassChapters() {
                                       </div>
                                     )}
                                   </div>
-                                  
-                                  <span className={`font-semibold text-xs sm:text-sm font-['Poppins'] truncate ${
-                                    lessonStatus === 'current' ? 'text-[#4f46e5]' :
+
+                                  <span className={`font-semibold text-xs sm:text-sm font-['Poppins'] truncate ${lessonStatus === 'current' ? 'text-[#4f46e5]' :
                                     lessonStatus === 'locked' ? 'text-gray-400' :
-                                    'text-gray-800'
-                                  }`}>
+                                      'text-gray-800'
+                                    }`}>
                                     {lesson.title}
                                   </span>
                                 </div>
-                                
+
                                 <div className="flex-shrink-0 ml-3">
                                   {lessonStatus === 'current' ? (
                                     <span className="text-[10px] font-semibold text-[#4f46e5] font-['Poppins'] uppercase">Mulai</span>
@@ -725,7 +871,7 @@ function StudentClassChapters() {
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
             <span>Pengumuman Kelas</span>
           </h3>
-          
+
           {announcements.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
               <div className="w-48 h-48 mx-auto mb-2">
@@ -760,9 +906,9 @@ function StudentClassChapters() {
                         )}
                       </div>
                       <p className="text-xs text-gray-500 font-['Poppins']">
-                        Oleh {announcement.teacher?.full_name} • {new Date(announcement.created_at).toLocaleDateString('id-ID', { 
-                          day: 'numeric', 
-                          month: 'long', 
+                        Oleh {announcement.teacher?.full_name} • {new Date(announcement.created_at).toLocaleDateString('id-ID', {
+                          day: 'numeric',
+                          month: 'long',
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit'
@@ -786,7 +932,7 @@ function StudentClassChapters() {
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
             <span>Anggota Kelas ({members.length})</span>
           </h3>
-          
+
           {members.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
               <div className="w-48 h-48 mx-auto mb-2">
@@ -834,7 +980,7 @@ function StudentClassChapters() {
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 px-1 font-['Poppins']">
             <span>Leaderboard Kelas</span>
           </h3>
-          
+
           {leaderboardData.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
               <div className="w-48 h-48 mx-auto mb-2">
@@ -861,17 +1007,15 @@ function StudentClassChapters() {
                 ]
 
                 return (
-                  <div 
-                    key={student.id} 
-                    className={`rounded-xl shadow-sm border p-4 ${
-                      isTop3 ? bgColors[index] : 'bg-white border-gray-100'
-                    }`}
+                  <div
+                    key={student.id}
+                    className={`rounded-xl shadow-sm border p-4 ${isTop3 ? bgColors[index] : 'bg-white border-gray-100'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       {/* Rank */}
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg ${
-                        isTop3 ? 'bg-white shadow-sm' : 'bg-gray-100 text-gray-600'
-                      }`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg ${isTop3 ? 'bg-white shadow-sm' : 'bg-gray-100 text-gray-600'
+                        }`}>
                         {isTop3 ? medals[index] : index + 1}
                       </div>
 
@@ -896,8 +1040,8 @@ function StudentClassChapters() {
 
                       {/* Score */}
                       <div className="flex items-center gap-1 bg-blue-500/80 text-white px-3 py-1.5 rounded-full font-semibold text-sm shadow-sm">
-                        <span>📊</span>
-                        <span>{student.avg_score || 0}%</span>
+                        <span>Rata-rata : </span>
+                        <span>{student.avg_score || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -946,7 +1090,7 @@ function StudentClassChapters() {
               </button>
             </div>
           </div>
-          
+
           {forumPosts.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
               <div className="w-48 h-48 mx-auto mb-2">
@@ -963,42 +1107,41 @@ function StudentClassChapters() {
             </div>
           ) : (
             <div className="space-y-3">
-              {forumPosts.map((post) => (
-                <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-10 w-10 flex-shrink-0">
-                      <AvatarImage src={post.author?.avatar_url} alt={post.author?.full_name} />
-                      <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white font-semibold text-sm">
-                        {post.author?.full_name?.charAt(0).toUpperCase() || '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-sm font-semibold text-gray-800 font-['Poppins']">
-                          {post.author?.full_name || 'Anonymous'}
-                        </h4>
-                        <span className="text-xs text-gray-400">•</span>
-                        <span className="text-xs text-gray-500 font-['Poppins']">
-                          {new Date(post.created_at).toLocaleDateString('id-ID', { 
-                            day: 'numeric', 
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-['Poppins']">
-                        {post.content}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              {forumPosts.filter(p => !p.parent_id).map((post) => (
+                <ForumCommentItem
+                  key={post.id}
+                  post={post}
+                  allPosts={forumPosts}
+                  currentUserId={currentUserId}
+                  isTeacher={false}
+                  onDelete={(postId) => setForumPostToDelete(postId)}
+                  onEdit={(postId, content) => {
+                    setEditingCommentContent(content)
+                    handleEditForumPost(postId)
+                  }}
+                  onReply={handleReplyForumPost}
+                />
               ))}
             </div>
           )}
         </div>
       )}
+
+      {/* Delete Forum Post Modal */}
+      <AlertDialog open={!!forumPostToDelete} onOpenChange={() => setForumPostToDelete(null)}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Komentar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Komentar akan dihapus permanen beserta semua balasannya.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={() => forumPostToDelete && handleDeleteForumPost(forumPostToDelete)} className="bg-red-600 hover:bg-red-700 text-white">Hapus</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </StudentLayout>
   )
 }
