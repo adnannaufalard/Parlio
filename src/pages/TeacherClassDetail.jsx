@@ -13,7 +13,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart'
-import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts'
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, BarChart, Bar } from 'recharts'
 import { MessageSquare, Send, Users, Trophy, BookOpen, Megaphone, BarChart3 } from 'lucide-react'
 
 const TeacherClassDetail = () => {
@@ -206,12 +206,11 @@ const TeacherClassDetail = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      // Get class members first
       const { data: membersData, error: membersError } = await supabase
         .from('class_members')
         .select(`
           student_id,
-          student:profiles!class_members_student_id_fkey (
+          student:profiles!class_members_student_id_fkey(
             id,
             full_name,
             avatar_url,
@@ -225,15 +224,12 @@ const TeacherClassDetail = () => {
         return
       }
 
-      // Get chapters assigned to this class
-      const { data: classChapters } = await supabase
-        .from('class_chapters')
-        .select('chapter_id')
-        .eq('class_id', id)
-        .eq('is_active', true)
+      // Fetch leaderboard stats via secure RPC function
+      const { data: leaderboardStats, error: statsError } = await supabase
+        .rpc('get_class_leaderboard', { p_class_id: Number(id) })
 
-      if (!classChapters || classChapters.length === 0) {
-        // No chapters, show members with 0 score
+      if (statsError) {
+        console.error('Error fetching leaderboard stats:', statsError)
         const sorted = membersData.map(m => ({
           id: m.student.id,
           full_name: m.student.full_name,
@@ -247,77 +243,20 @@ const TeacherClassDetail = () => {
         return
       }
 
-      const chapterIds = classChapters.map(c => c.chapter_id)
-
-      // Get lessons in those chapters
-      const { data: lessons } = await supabase
-        .from('lessons')
-        .select('id')
-        .in('chapter_id', chapterIds)
-
-      if (!lessons || lessons.length === 0) {
-        const sorted = membersData.map(m => ({
-          id: m.student.id,
-          full_name: m.student.full_name,
-          avatar_url: m.student.avatar_url,
-          coins: m.student.coins || 0,
-          total_score: 0,
-          avg_score: 0,
-          quest_count: 0
-        })).sort((a, b) => a.full_name.localeCompare(b.full_name))
-        setLeaderboard(sorted)
-        return
-      }
-
-      const lessonIds = lessons.map(l => l.id)
-
-      // Get quests in those lessons
-      const { data: quests } = await supabase
-        .from('quests')
-        .select('id')
-        .in('lesson_id', lessonIds)
-
-      if (!quests || quests.length === 0) {
-        const sorted = membersData.map(m => ({
-          id: m.student.id,
-          full_name: m.student.full_name,
-          avatar_url: m.student.avatar_url,
-          coins: m.student.coins || 0,
-          total_score: 0,
-          avg_score: 0,
-          quest_count: 0
-        })).sort((a, b) => a.full_name.localeCompare(b.full_name))
-        setLeaderboard(sorted)
-        return
-      }
-
-      const questIds = quests.map(q => q.id)
-      const studentIds = membersData.map(m => m.student_id)
-
-      // Get scores from quest attempts for these quests by class members
-      const { data: attempts } = await supabase
-        .from('student_quest_attempts')
-        .select('student_id, score, max_score')
-        .in('quest_id', questIds)
-        .in('student_id', studentIds)
-
-      // Calculate total score and average score per student
+      // Map stats by student_id
       const scoresByStudent = {}
-        ; (attempts || []).forEach(a => {
-          if (!scoresByStudent[a.student_id]) {
-            scoresByStudent[a.student_id] = { total: 0, max: 0, count: 0 }
-          }
-          scoresByStudent[a.student_id].total += a.score || 0
-          scoresByStudent[a.student_id].max += a.max_score || 0
-          scoresByStudent[a.student_id].count += 1
-        })
+      ;(leaderboardStats || []).forEach(stat => {
+        scoresByStudent[stat.student_id] = {
+          total: Number(stat.total_score || 0),
+          avg: Number(stat.avg_score || 0),
+          count: Number(stat.quest_count || 0)
+        }
+      })
 
-      // Build leaderboard with scores (nilai)
+      // Build leaderboard with scores
       const leaderboardWithScores = membersData.map(m => {
-        const studentScores = scoresByStudent[m.student_id] || { total: 0, max: 0, count: 0 }
-        const avgScore = studentScores.max > 0
-          ? Math.round((studentScores.total / studentScores.max) * 100)
-          : 0
+        const studentScores = scoresByStudent[m.student_id] || { total: 0, avg: 0, count: 0 }
+        const avgScore = studentScores.avg
         return {
           id: m.student.id,
           full_name: m.student.full_name,
@@ -332,6 +271,7 @@ const TeacherClassDetail = () => {
       setLeaderboard(leaderboardWithScores)
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
+      setLeaderboard([])
     }
   }
 
@@ -361,13 +301,15 @@ const TeacherClassDetail = () => {
 
       const { data: classChapters } = await supabase
         .from('class_chapters')
-        .select('chapter_id')
+        .select(`
+          chapter_id,
+          chapter:chapters(id, title)
+        `)
         .eq('class_id', id)
         .eq('is_active', true)
 
       if (!classChapters || classChapters.length === 0) {
-        setStatsChartData([])
-        setStatsSeries([])
+        setStatsChartData({ chapters: [], lessonsByChapter: [] })
         setStatsSummary([])
         setStatsConfig({})
         return
@@ -377,12 +319,12 @@ const TeacherClassDetail = () => {
 
       const { data: lessons } = await supabase
         .from('lessons')
-        .select('id')
+        .select('id, chapter_id, title')
         .in('chapter_id', chapterIds)
+        .order('lesson_order', { ascending: true })
 
       if (!lessons || lessons.length === 0) {
-        setStatsChartData([])
-        setStatsSeries([])
+        setStatsChartData({ chapters: [], lessonsByChapter: [] })
         setStatsSummary([])
         setStatsConfig({})
         return
@@ -392,12 +334,11 @@ const TeacherClassDetail = () => {
 
       const { data: quests } = await supabase
         .from('quests')
-        .select('id')
+        .select('id, lesson_id')
         .in('lesson_id', lessonIds)
 
       if (!quests || quests.length === 0) {
-        setStatsChartData([])
-        setStatsSeries([])
+        setStatsChartData({ chapters: [], lessonsByChapter: [] })
         setStatsSummary([])
         setStatsConfig({})
         return
@@ -408,117 +349,112 @@ const TeacherClassDetail = () => {
 
       const { data: attempts } = await supabase
         .from('student_quest_attempts')
-        .select('student_id, score, max_score, completed_at')
+        .select('student_id, quest_id, percentage, score, max_score')
         .in('quest_id', questIds)
         .in('student_id', studentIds)
-        .order('completed_at', { ascending: true })
 
-      const palette = [
-        '#2563eb',
-        '#f97316',
-        '#10b981',
-        '#ef4444',
-        '#8b5cf6',
-        '#14b8a6',
-        '#f59e0b',
-        '#0ea5e9',
-        '#84cc16',
-        '#ec4899'
-      ]
+      const chapterAveragesData = []
+      const lessonsByChapterData = {}
 
-      const studentsInfo = membersData.map((m, index) => {
-        const dataKey = `student_${m.student_id.replace(/-/g, '')}`
+      classChapters.forEach(cc => {
+        const chapterLessons = lessons.filter(l => l.chapter_id === cc.chapter_id)
+        const lessonAveragesForChart = []
+        let chapterTotalAverage = 0
+        let lessonsWithDataCount = 0
+
+        chapterLessons.forEach(lesson => {
+          const lessonQuests = quests.filter(q => q.lesson_id === lesson.id)
+          const lessonQuestIds = lessonQuests.map(q => q.id)
+
+          if (lessonQuestIds.length === 0) return
+
+          let lessonSumForClass = 0
+          let studentCountForLesson = 0
+
+          membersData.forEach(m => {
+            const studentAttempts = (attempts || []).filter(a => a.student_id === m.student_id)
+            const bestScores = lessonQuestIds.map(qId => {
+              const qAttempts = studentAttempts.filter(a => a.quest_id === qId)
+              if (qAttempts.length === 0) return 0
+              return Math.max(...qAttempts.map(a => {
+                if (a.percentage !== null && a.percentage !== undefined) return a.percentage
+                return a.max_score > 0 ? Math.round((a.score / a.max_score) * 100) : 0
+              }))
+            })
+            
+            const studentLessonAvg = Math.round(bestScores.reduce((a, b) => a + b, 0) / lessonQuestIds.length)
+            lessonSumForClass += studentLessonAvg
+            studentCountForLesson++
+          })
+
+          const classLessonAvg = studentCountForLesson > 0 ? Math.round(lessonSumForClass / studentCountForLesson) : 0
+          lessonAveragesForChart.push({
+            name: lesson.title,
+            average: classLessonAvg
+          })
+
+          chapterTotalAverage += classLessonAvg
+          lessonsWithDataCount++
+        })
+
+        const finalChapterAvg = lessonsWithDataCount > 0 ? Math.round(chapterTotalAverage / lessonsWithDataCount) : 0
+        
+        chapterAveragesData.push({
+          name: cc.chapter?.title || 'Unknown',
+          average: finalChapterAvg
+        })
+
+        lessonsByChapterData[cc.chapter_id] = {
+          title: cc.chapter?.title || 'Unknown',
+          data: lessonAveragesForChart
+        }
+      })
+
+      const studentsSummary = membersData.map(m => {
+        const studentAttempts = (attempts || []).filter(a => a.student_id === m.student_id)
+        let totalStudentAvg = 0
+        let totalValidLessons = 0
+
+        classChapters.forEach(cc => {
+          const chapterLessons = lessons.filter(l => l.chapter_id === cc.chapter_id)
+          chapterLessons.forEach(lesson => {
+            const lessonQuests = quests.filter(q => q.lesson_id === lesson.id)
+            const lessonQuestIds = lessonQuests.map(q => q.id)
+            if (lessonQuestIds.length === 0) return
+
+            const bestScores = lessonQuestIds.map(qId => {
+              const qAttempts = studentAttempts.filter(a => a.quest_id === qId)
+              if (qAttempts.length === 0) return 0
+              return Math.max(...qAttempts.map(a => {
+                if (a.percentage !== null && a.percentage !== undefined) return a.percentage
+                return a.max_score > 0 ? Math.round((a.score / a.max_score) * 100) : 0
+              }))
+            })
+            const studentLessonAvg = Math.round(bestScores.reduce((a, b) => a + b, 0) / lessonQuestIds.length)
+            totalStudentAvg += studentLessonAvg
+            totalValidLessons++
+          })
+        })
+        
         return {
           id: m.student_id,
           name: m.student?.full_name || 'Siswa',
           avatar_url: m.student?.avatar_url,
-          dataKey,
-          color: palette[index % palette.length]
+          avg_score: totalValidLessons > 0 ? Math.round(totalStudentAvg / totalValidLessons) : 0
         }
       })
 
-      const attemptsByStudent = {}
-      studentsInfo.forEach((student) => {
-        attemptsByStudent[student.id] = {
-          ...student,
-          attempts: [],
-          totalScore: 0,
-          totalMax: 0
-        }
+      setStatsChartData({
+        chapters: chapterAveragesData,
+        lessonsByChapter: Object.values(lessonsByChapterData)
       })
-
-        ; (attempts || []).forEach((attempt) => {
-          const student = attemptsByStudent[attempt.student_id]
-          if (!student) return
-          const percent = attempt.max_score > 0
-            ? Math.round((attempt.score || 0) / attempt.max_score * 100)
-            : 0
-          student.attempts.push({
-            percent,
-            score: attempt.score || 0,
-            maxScore: attempt.max_score || 0
-          })
-          student.totalScore += attempt.score || 0
-          student.totalMax += attempt.max_score || 0
-        })
-
-      const maxAttempts = Math.max(
-        0,
-        ...Object.values(attemptsByStudent).map(student => student.attempts.length)
-      )
-
-      const chartData = Array.from({ length: maxAttempts }, (_, index) => ({
-        attempt: index + 1
-      }))
-
-      Object.values(attemptsByStudent).forEach((student) => {
-        student.attempts.forEach((attempt, index) => {
-          chartData[index][student.dataKey] = attempt.percent
-        })
-      })
-
-      chartData.forEach((point, index) => {
-        const values = Object.values(attemptsByStudent)
-          .map(student => student.attempts[index]?.percent)
-          .filter((value) => value !== undefined)
-        point.average = values.length > 0
-          ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-          : 0
-      })
-
-      const series = Object.values(attemptsByStudent).map((student) => {
-        const avgScore = student.totalMax > 0
-          ? Math.round((student.totalScore / student.totalMax) * 100)
-          : 0
-        return {
-          id: student.id,
-          name: student.name,
-          avatar_url: student.avatar_url,
-          dataKey: student.dataKey,
-          color: student.color,
-          avg_score: avgScore,
-          attempt_count: student.attempts.length
-        }
-      })
-
-      const config = {
+      setStatsSummary(studentsSummary.sort((a, b) => b.avg_score - a.avg_score))
+      setStatsConfig({
         average: {
           label: 'Rata-rata Kelas',
-          color: '#0f172a'
-        }
-      }
-
-      series.forEach((item) => {
-        config[item.dataKey] = {
-          label: item.name,
-          color: item.color
+          color: '#3b82f6'
         }
       })
-
-      setStatsChartData(chartData)
-      setStatsSeries(series)
-      setStatsSummary([...series].sort((a, b) => b.avg_score - a.avg_score))
-      setStatsConfig(config)
     } catch (error) {
       console.error('Error fetching statistics:', error)
     } finally {
@@ -797,11 +733,11 @@ const TeacherClassDetail = () => {
     <TeacherLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-start">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div>
-              <h1 className="text-3xl font-semibold text-gray-800">{classData.class_name}</h1>
-              <div className="mt-2 flex items-center gap-4">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 break-words">{classData.class_name}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-4">
                 <span className="text-sm text-gray-500">
                   Kode Kelas: <span className="font-mono font-semibold text-blue-600">{classData.class_code}</span>
                 </span>
@@ -815,7 +751,7 @@ const TeacherClassDetail = () => {
             </div>
             <button
               onClick={() => navigate('/teacher/classes')}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 border sm:border-transparent rounded-lg hover:bg-gray-50 sm:hover:bg-transparent w-full sm:w-auto text-center"
             >
               ← Kembali
             </button>
@@ -824,8 +760,8 @@ const TeacherClassDetail = () => {
 
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-md">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
+          <div className="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+            <nav className="flex whitespace-nowrap px-2">
               {[
                 { key: 'chapters', label: 'Pelajaran', icon: <BookOpen className="h-4 w-4" /> },
                 { key: 'announcements', label: 'Pengumuman', icon: <Megaphone className="h-4 w-4" /> },
@@ -840,7 +776,7 @@ const TeacherClassDetail = () => {
                     setActiveTab(tab.key)
                     navigate(`/teacher/classes/${id}?tab=${tab.key}`, { replace: true })
                   }}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === tab.key
+                  className={`px-4 sm:px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 shrink-0 ${activeTab === tab.key
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
@@ -857,18 +793,18 @@ const TeacherClassDetail = () => {
             {/* Chapters Tab */}
             {activeTab === 'chapters' && (
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-800">Pelajaran yang Ditambahkan ({chapters.length})</h2>
-                  <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Pelajaran yang Ditambahkan ({chapters.length})</h2>
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => navigate('/teacher/quest-builder')}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                      className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
                     >
                       + Buat Pelajaran Baru
                     </button>
                     <button
                       onClick={() => setShowAssignChapterModal(true)}
-                      className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+                      className="w-full sm:w-auto px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm"
                     >
                       + Tambah Pelajaran
                     </button>
@@ -963,7 +899,7 @@ const TeacherClassDetail = () => {
                   <h2 className="text-xl font-semibold text-gray-800">Daftar Siswa ({students.length})</h2>
                   <button
                     onClick={() => setShowAddStudentModal(true)}
-                    className="px-4 py-2 bg-[#1E258F] text-white rounded hover:bg-[#161c6e]"
+                    className="w-full sm:w-auto px-4 py-2 bg-[#1E258F] text-white rounded hover:bg-[#161c6e] text-sm"
                   >
                     + Tambah Siswa
                   </button>
@@ -978,11 +914,10 @@ const TeacherClassDetail = () => {
                         autoplay
                       />
                     </div>
-                    <p className="text-gray-500">Belum ada siswa di kelas ini</p>
-
+                    <p className="text-gray-500">Belum ada siswa yang mendaftar di kelas ini</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {students.map((item) => (
                       <div key={item.student_id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-start gap-3">
@@ -1029,11 +964,11 @@ const TeacherClassDetail = () => {
             {/* Announcements Tab */}
             {activeTab === 'announcements' && (
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                   <h2 className="text-xl font-semibold text-gray-800">Pengumuman Kelas</h2>
                   <button
                     onClick={() => setShowAnnouncementModal(true)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    className="w-full sm:w-auto px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
                   >
                     + Buat Pengumuman
                   </button>
@@ -1111,11 +1046,11 @@ const TeacherClassDetail = () => {
             {/* Leaderboard Tab */}
             {activeTab === 'leaderboard' && (
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                   <h2 className="text-xl font-semibold text-gray-800">Leaderboard Kelas</h2>
                   <button
                     onClick={fetchLeaderboard}
-                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded hover:bg-gray-50"
+                    className="w-full sm:w-auto px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded hover:bg-gray-50"
                   >
                     Refresh
                   </button>
@@ -1244,7 +1179,7 @@ const TeacherClassDetail = () => {
                   <div className="flex items-center justify-center h-56">
                     <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
                   </div>
-                ) : statsChartData.length === 0 ? (
+                ) : !statsChartData.chapters || statsChartData.chapters.length === 0 ? (
                   <div className="text-center py-12 bg-gray-50 rounded-lg">
                     <div className="w-40 h-40 mx-auto mb-4">
                       <DotLottieReact
@@ -1253,38 +1188,54 @@ const TeacherClassDetail = () => {
                         autoplay
                       />
                     </div>
-                    <p className="text-gray-500">Belum ada attempt untuk kelas ini</p>
+                    <p className="text-gray-500">Belum ada data untuk kelas ini</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    <div className="bg-white border border-gray-200 rounded-xl p-4">
-                      <ChartContainer config={statsConfig} className="h-[320px]">
-                        <LineChart data={statsChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="attempt" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                          <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <ChartLegend content={<ChartLegendContent />} />
-                          <Line
-                            type="monotone"
-                            dataKey="average"
-                            stroke="var(--color-average)"
-                            strokeWidth={2}
-                            dot={false}
-                            strokeDasharray="6 4"
-                          />
-                          {statsSeries.map((series) => (
-                            <Line
-                              key={series.id}
-                              type="monotone"
-                              dataKey={series.dataKey}
-                              stroke={`var(--color-${series.dataKey})`}
-                              strokeWidth={2}
-                              dot={false}
-                            />
-                          ))}
-                        </LineChart>
-                      </ChartContainer>
+                    {/* Main Chapter Chart */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 w-full">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 font-['Poppins']">Rata-rata Kelas per Bab</h3>
+                      <div className="w-full overflow-x-auto pb-2">
+                        <div className="min-w-[600px] w-full">
+                          <ChartContainer config={statsConfig} className="h-[300px]">
+                            <BarChart data={statsChartData.chapters} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                              <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                              <ChartTooltip content={<ChartTooltipContent />} />
+                              <Bar dataKey="average" fill="var(--color-average)" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ChartContainer>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Lesson Charts grouped by Chapter */}
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      {statsChartData.lessonsByChapter.map((chapterData, idx) => (
+                        <div key={idx} className="bg-white border border-gray-200 rounded-xl p-5 w-full">
+                          <h3 className="text-base font-semibold text-gray-800 mb-4 font-['Poppins']">Rata-rata Sub Bab: {chapterData.title}</h3>
+                          {chapterData.data.length > 0 ? (
+                            <div className="w-full overflow-x-auto pb-2">
+                              <div className="min-w-[400px] w-full">
+                                <ChartContainer config={statsConfig} className="h-[250px]">
+                                  <BarChart data={chapterData.data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                                    <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                                    <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                    <Bar dataKey="average" fill="var(--color-average)" radius={[4, 4, 0, 0]} opacity={0.8} />
+                                  </BarChart>
+                                </ChartContainer>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="h-[250px] flex items-center justify-center bg-gray-50/50 rounded-lg border border-gray-100">
+                              <span className="text-sm text-gray-400">Belum ada sub bab</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
 
                     <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -1300,7 +1251,6 @@ const TeacherClassDetail = () => {
                             </Avatar>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-gray-800 truncate">{student.name}</p>
-                              <p className="text-xs text-gray-500">{student.attempt_count} attempt</p>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500">Rata-rata</span>

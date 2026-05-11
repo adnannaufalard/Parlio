@@ -49,12 +49,12 @@ export function ForumCommentItem({
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h4 className="text-sm font-semibold text-gray-800 font-['Poppins']">
                 {post.author?.full_name || 'Anonymous'}
               </h4>
-              <span className="text-xs text-gray-400">•</span>
+              <span className="text-xs text-gray-400 hidden sm:inline">•</span>
               <span className="text-xs text-gray-500">
                 {new Date(post.created_at).toLocaleDateString('id-ID', { 
                   day: 'numeric', 
@@ -70,7 +70,7 @@ export function ForumCommentItem({
             </div>
             
             {/* Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 self-end sm:self-auto">
               <button
                 onClick={() => setIsReplying(!isReplying)}
                 className="text-gray-400 hover:text-blue-500 text-xs font-medium flex items-center gap-1 font-['Poppins']"

@@ -367,15 +367,13 @@ function StudentClassChapters() {
         return
       }
 
-      // Get chapters assigned to this class
-      const { data: classChapters } = await supabase
-        .from('class_chapters')
-        .select('chapter_id')
-        .eq('class_id', classId)
-        .eq('is_active', true)
+      // Fetch leaderboard stats via secure RPC function
+      const { data: leaderboardStats, error: statsError } = await supabase
+        .rpc('get_class_leaderboard', { p_class_id: Number(classId) })
 
-      if (!classChapters || classChapters.length === 0) {
-        // No chapters, show members with 0 score
+      if (statsError) {
+        console.error('Error fetching leaderboard stats:', statsError)
+        // Fallback to 0 if RPC fails
         const sorted = membersData.map(m => ({
           id: m.profiles.id,
           name: m.profiles.full_name,
@@ -387,73 +385,20 @@ function StudentClassChapters() {
         return
       }
 
-      const chapterIds = classChapters.map(c => c.chapter_id)
-
-      // Get lessons in those chapters
-      const { data: lessons } = await supabase
-        .from('lessons')
-        .select('id')
-        .in('chapter_id', chapterIds)
-
-      if (!lessons || lessons.length === 0) {
-        const sorted = membersData.map(m => ({
-          id: m.profiles.id,
-          name: m.profiles.full_name,
-          avatar_url: m.profiles.avatar_url,
-          avg_score: 0,
-          quest_count: 0
-        })).sort((a, b) => a.name.localeCompare(b.name))
-        setLeaderboardData(sorted)
-        return
-      }
-
-      const lessonIds = lessons.map(l => l.id)
-
-      // Get quests in those lessons
-      const { data: quests } = await supabase
-        .from('quests')
-        .select('id')
-        .in('lesson_id', lessonIds)
-
-      if (!quests || quests.length === 0) {
-        const sorted = membersData.map(m => ({
-          id: m.profiles.id,
-          name: m.profiles.full_name,
-          avatar_url: m.profiles.avatar_url,
-          avg_score: 0,
-          quest_count: 0
-        })).sort((a, b) => a.name.localeCompare(b.name))
-        setLeaderboardData(sorted)
-        return
-      }
-
-      const questIds = quests.map(q => q.id)
-      const studentIds = membersData.map(m => m.student_id)
-
-      // Get scores from quest attempts for these quests by class members
-      const { data: attempts } = await supabase
-        .from('student_quest_attempts')
-        .select('student_id, score, max_score')
-        .in('quest_id', questIds)
-        .in('student_id', studentIds)
-
-      // Calculate avg score per student
+      // Map stats by student_id
       const scoresByStudent = {}
-        ; (attempts || []).forEach(a => {
-          if (!scoresByStudent[a.student_id]) {
-            scoresByStudent[a.student_id] = { total: 0, max: 0, count: 0 }
-          }
-          scoresByStudent[a.student_id].total += a.score || 0
-          scoresByStudent[a.student_id].max += a.max_score || 0
-          scoresByStudent[a.student_id].count += 1
-        })
+      ;(leaderboardStats || []).forEach(stat => {
+        scoresByStudent[stat.student_id] = {
+          total: Number(stat.total_score || 0),
+          avg: Number(stat.avg_score || 0),
+          count: Number(stat.quest_count || 0)
+        }
+      })
 
       // Build leaderboard with class-specific scores
       const leaderboardWithScores = membersData.map(m => {
-        const studentScores = scoresByStudent[m.student_id] || { total: 0, max: 0, count: 0 }
-        const avgScore = studentScores.max > 0
-          ? Math.round((studentScores.total / studentScores.max) * 100)
-          : 0
+        const studentScores = scoresByStudent[m.student_id] || { total: 0, avg: 0, count: 0 }
+        const avgScore = studentScores.avg
         return {
           id: m.profiles.id,
           name: m.profiles.full_name,

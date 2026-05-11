@@ -117,9 +117,18 @@ export default function TeacherReports() {
       const questColumns = data.questColumns || [];
       
       // Build headers
-      const headers = ['No', 'Nama Siswa', 'Kelas', 'Email'];
+      const headers = ['No', 'Nama Siswa', 'Kelas', 'Email', 'Bab'];
+      if (data.reportType !== 'chapter') {
+        headers.push('Sub Bab');
+      }
+      
       questColumns.forEach(q => headers.push(q.title));
-      headers.push('Rata-rata', 'Status');
+      
+      if (data.reportType === 'chapter') {
+        headers.push('Rata-rata Keseluruhan', 'Status');
+      } else {
+        headers.push('Rata-rata', 'Status');
+      }
       
       // Build rows
       const rows = data.students?.map((student, index) => {
@@ -127,31 +136,43 @@ export default function TeacherReports() {
           index + 1,
           student.name,
           student.className || data.className || '-',
-          student.email || '-'
+          student.email || '-',
+          data.chapterTitle || '-'
         ];
+        
+        if (data.reportType !== 'chapter') {
+          row.push(data.lessonTitle || '-');
+        }
         
         questColumns.forEach(q => {
           const score = student.questScores?.[q.id];
           row.push(score !== undefined ? score : '-');
         });
         
-        row.push(student.score?.toFixed(1) || '-');
+        row.push(student.score !== undefined && student.score !== null ? student.score.toFixed(1) : '-');
         row.push(student.status || (student.passed ? 'Lulus' : 'Tidak Lulus'));
         
         return row;
       }) || [];
       
-      // Create CSV content
-      const csvContent = [
+      // Create CSV content with UTF-8 BOM for Excel compatibility
+      const csvContent = '\uFEFF' + [
         headers.join(','),
         ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
       ].join('\n');
+      
+      // Clean up filename by removing special characters
+      const cleanFileName = selectedReport.report_name
+        .replace(/[^a-z0-9]/gi, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .toLowerCase();
       
       // Download file
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `${selectedReport.report_name.replace(/\s+/g, '_')}.csv`;
+      link.download = `${cleanFileName || 'report'}.csv`;
       link.click();
     } catch (error) {
       console.error('Error exporting CSV:', error);
@@ -473,12 +494,18 @@ export default function TeacherReports() {
                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Nama Siswa</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Kelas</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Email</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider min-w-[120px]">Bab</th>
+                            {selectedReport.report_data?.reportType !== 'chapter' && (
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider min-w-[120px]">Sub Bab</th>
+                            )}
                             {selectedReport.report_data?.questColumns?.map(quest => (
                               <th key={quest.id} className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap">
                                 {quest.title}
                               </th>
                             ))}
-                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Rata-rata</th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              {selectedReport.report_data?.reportType === 'chapter' ? 'Rata-rata Keseluruhan' : 'Rata-rata'}
+                            </th>
                             <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
                           </tr>
                         </thead>
@@ -493,6 +520,14 @@ export default function TeacherReports() {
                                 {student.className || selectedReport.report_data?.className || '-'}
                               </td>
                               <td className="px-4 py-3.5 text-sm text-slate-500">{student.email || '-'}</td>
+                              <td className="px-4 py-3.5 text-sm font-medium text-slate-700">
+                                {selectedReport.report_data?.chapterTitle || '-'}
+                              </td>
+                              {selectedReport.report_data?.reportType !== 'chapter' && (
+                                <td className="px-4 py-3.5 text-sm font-medium text-slate-700">
+                                  {selectedReport.report_data?.lessonTitle || '-'}
+                                </td>
+                              )}
                               {selectedReport.report_data?.questColumns?.map(quest => {
                                 const score = student.questScores?.[quest.id];
                                 return (

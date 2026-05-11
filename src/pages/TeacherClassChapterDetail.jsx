@@ -9,7 +9,7 @@ import {
   FileText, Video, Music, Image, File,
   ArrowLeft, CheckCircle2, XCircle, AlertTriangle,
   Save, Check, Loader2, Users, Layout, Award, TrendingUp,
-  Clock, PlayCircle, FileQuestion, BookMarked
+  Clock, PlayCircle, FileQuestion, BookMarked, Layers
 } from 'lucide-react'
 
 function TeacherClassChapterDetail() {
@@ -28,6 +28,8 @@ function TeacherClassChapterDetail() {
   const [studentBestScores, setStudentBestScores] = useState([])
   const [savingReport, setSavingReport] = useState(false)
   const [reportSaved, setReportSaved] = useState(false)
+  const [showSaveOptions, setShowSaveOptions] = useState(false)
+  const [savingChapterReport, setSavingChapterReport] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -429,8 +431,8 @@ function TeacherClassChapterDetail() {
 
       // Calculate overall stats
       const allStudentAvgScores = studentBestScores.map(item => {
-        const scores = item.questsArray.filter(q => q.bestScore !== null).map(q => q.bestScore)
-        return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
+        const scores = item.questsArray.map(q => q.bestScore !== null ? q.bestScore : 0)
+        return item.questsArray.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / item.questsArray.length) : null
       }).filter(s => s !== null)
 
       const avgScore = allStudentAvgScores.length > 0
@@ -450,6 +452,7 @@ function TeacherClassChapterDetail() {
 
       // Prepare report data with format: nama siswa, kelas, email, nilai quest a, nilai quest b, rata-rata, status
       const reportData = {
+        reportType: 'lesson',
         lessonTitle: selectedLesson.title,
         chapterTitle: chapter?.title,
         className: classData?.class_name,
@@ -462,8 +465,8 @@ function TeacherClassChapterDetail() {
           passedCount: passedCount
         },
         students: studentBestScores.map(item => {
-          const scores = item.questsArray.filter(q => q.bestScore !== null).map(q => q.bestScore)
-          const studentAvg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+          const scores = item.questsArray.map(q => q.bestScore !== null ? q.bestScore : 0)
+          const studentAvg = item.questsArray.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / item.questsArray.length) : 0
           const isPassed = studentAvg >= 70
 
           // Build quest scores object { questId: score }
@@ -502,12 +505,152 @@ function TeacherClassChapterDetail() {
       if (error) throw error
 
       setReportSaved(true)
-      toast.success('Laporan berhasil disimpan!')
+      toast.success('Laporan Sub Bab berhasil disimpan!')
     } catch (error) {
       console.error('Error saving report:', error)
       toast.error('Gagal menyimpan laporan')
     } finally {
       setSavingReport(false)
+    }
+  }
+
+  // Save full chapter report to database
+  const handleSaveChapterReport = async () => {
+    if (!lessons || lessons.length === 0 || studentBestScores.length === 0) {
+      toast.error('Tidak ada data bab untuk disimpan')
+      return
+    }
+
+    setSavingChapterReport(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Get all class members to know who we're reporting on
+      const { data: classMembers, error: membersError } = await supabase
+        .from('class_members')
+        .select(`
+          student_id,
+          student:profiles!class_members_student_id_fkey(id, full_name, email, avatar_url)
+        `)
+        .eq('class_id', classId)
+
+      if (membersError) throw membersError
+      const studentIds = classMembers.map(m => m.student_id)
+
+      // Get ALL quests for the ENTIRE chapter
+      const allQuests = lessons.flatMap(l => 
+        (l.quests || []).map(q => ({ ...q, lesson_id: l.id }))
+      )
+      const allQuestIds = allQuests.map(q => q.id)
+
+      if (allQuestIds.length === 0) {
+        toast.error('Belum ada quest di bab ini')
+        setSavingChapterReport(false)
+        return
+      }
+
+      // Get ALL attempts for these quests
+      const { data: allAttempts, error: attemptsError } = await supabase
+        .from('student_quest_attempts')
+        .select('student_id, quest_id, percentage')
+        .in('quest_id', allQuestIds)
+        .in('student_id', studentIds)
+
+      if (attemptsError) throw attemptsError
+
+      // Structure data: per student, per lesson -> average score
+      // Build lessonColumns for headers
+      const lessonColumns = lessons.map(l => ({
+        id: l.id,
+        title: l.title
+      }))
+
+      const studentsData = classMembers.map(m => {
+        const studentAttempts = (allAttempts || []).filter(a => a.student_id === m.student_id)
+        
+        const lessonScores = {}
+        const allLessonAverages = []
+
+        lessons.forEach(lesson => {
+          const lessonQuestIds = lesson.quests?.map(q => q.id) || []
+          if (lessonQuestIds.length === 0) return
+
+          // Find best attempt per quest in this lesson
+          const bestScoresInLesson = lessonQuestIds.map(qId => {
+            const qAttempts = studentAttempts.filter(a => a.quest_id === qId)
+            if (qAttempts.length === 0) return 0
+            return Math.max(...qAttempts.map(a => a.percentage || 0))
+          })
+
+          if (bestScoresInLesson.length > 0) {
+            const lessonAvg = Math.round(bestScoresInLesson.reduce((a, b) => a + b, 0) / lessonQuestIds.length)
+            lessonScores[lesson.id] = lessonAvg
+            allLessonAverages.push(lessonAvg)
+          }
+        })
+
+        const lessonsWithQuestsCount = lessons.filter(l => l.quests?.length > 0).length
+        const totalAvg = lessonsWithQuestsCount > 0 
+          ? Math.round(allLessonAverages.reduce((a, b) => a + b, 0) / lessonsWithQuestsCount)
+          : 0
+
+        const isPassed = totalAvg >= 70
+
+        return {
+          id: m.student?.id,
+          name: m.student?.full_name || 'Unknown',
+          className: classData?.class_name || '',
+          email: m.student?.email || '',
+          questScores: lessonScores, // Reusing questScores key but it holds lesson IDs
+          score: totalAvg,
+          passed: isPassed,
+          status: isPassed ? 'Lulus' : 'Tidak Lulus'
+        }
+      }).sort((a, b) => b.score - a.score)
+
+      const passedCount = studentsData.filter(s => s.passed).length
+      const validScores = studentsData.map(s => s.score).filter(s => s > 0)
+      const avgScore = validScores.length > 0 ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0
+      const highestScore = validScores.length > 0 ? Math.max(...validScores) : 0
+      const lowestScore = validScores.length > 0 ? Math.min(...validScores) : 0
+
+      const reportData = {
+        reportType: 'chapter',
+        chapterTitle: chapter?.title,
+        className: classData?.class_name,
+        questColumns: lessonColumns, // Reusing questColumns key for lessons
+        stats: {
+          totalStudents: studentsData.length,
+          avgScore: avgScore,
+          highestScore: highestScore,
+          lowestScore: lowestScore,
+          passedCount: passedCount
+        },
+        students: studentsData
+      }
+
+      const reportName = `${chapter?.title} - Semua Sub Bab`
+
+      // Insert new report
+      const { error } = await supabase
+        .from('saved_reports')
+        .insert({
+          saved_by: user.id,
+          class_id: classId,
+          chapter_id: chapterId,
+          report_name: reportName,
+          report_data: reportData
+        })
+
+      if (error) throw error
+
+      toast.success('Laporan Seluruh Bab berhasil disimpan!')
+    } catch (error) {
+      console.error('Error saving chapter report:', error)
+      toast.error('Gagal menyimpan laporan seluruh bab')
+    } finally {
+      setSavingChapterReport(false)
     }
   }
 
@@ -864,31 +1007,60 @@ function TeacherClassChapterDetail() {
                                   <Award className="w-5 h-5 text-gray-400" />
                                   Nilai Akhir Siswa (Best Score)
                                 </h3>
-                                <button
-                                  onClick={handleSaveReport}
-                                  disabled={savingReport}
-                                  className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium font-['Poppins'] text-sm transition-all shadow-sm ${reportSaved
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md border border-transparent'
-                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                >
-                                  {savingReport ? (
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setShowSaveOptions(!showSaveOptions)}
+                                    disabled={savingReport || savingChapterReport}
+                                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium font-['Poppins'] text-sm transition-all shadow-sm bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md border border-transparent disabled:opacity-50 disabled:cursor-not-allowed`}
+                                  >
+                                    {savingReport || savingChapterReport ? (
+                                      <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Menyimpan...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Save className="w-4 h-4" />
+                                        Simpan ke Laporan
+                                        <svg className={`w-4 h-4 transition-transform ${showSaveOptions ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                      </>
+                                    )}
+                                  </button>
+                                  
+                                  {showSaveOptions && (
                                     <>
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                      Menyimpan...
-                                    </>
-                                  ) : reportSaved ? (
-                                    <>
-                                      <Check className="w-4 h-4" />
-                                      Tersimpan
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Save className="w-4 h-4" />
-                                      Simpan ke Laporan
+                                      <div 
+                                        className="fixed inset-0 z-10" 
+                                        onClick={() => setShowSaveOptions(false)}
+                                      ></div>
+                                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20 overflow-hidden font-['Poppins'] text-sm">
+                                        <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50/50 mb-1">
+                                          Pilih Tipe Laporan
+                                        </div>
+                                        <button 
+                                          onClick={() => {
+                                            setShowSaveOptions(false);
+                                            handleSaveReport();
+                                          }}
+                                          className="w-full text-left px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center gap-2"
+                                        >
+                                          <FileText className="w-4 h-4" />
+                                          Simpan Sub Bab Ini
+                                        </button>
+                                        <button 
+                                          onClick={() => {
+                                            setShowSaveOptions(false);
+                                            handleSaveChapterReport();
+                                          }}
+                                          className="w-full text-left px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center gap-2"
+                                        >
+                                          <Layers className="w-4 h-4" />
+                                          Simpan Seluruh Bab
+                                        </button>
+                                      </div>
                                     </>
                                   )}
-                                </button>
+                                </div>
                               </div>
                               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
                                 <div className="overflow-x-auto">
@@ -907,12 +1079,10 @@ function TeacherClassChapterDetail() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 font-['Poppins']">
                                       {studentBestScores.map((item, idx) => {
-                                        // Calculate average of all best scores
-                                        const scores = item.questsArray
-                                          .filter(q => q.bestScore !== null)
-                                          .map(q => q.bestScore)
-                                        const avgScore = scores.length > 0
-                                          ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+                                        // Calculate average of all best scores treating unattempted as 0
+                                        const scores = item.questsArray.map(q => q.bestScore !== null ? q.bestScore : 0)
+                                        const avgScore = item.questsArray.length > 0
+                                          ? Math.round(scores.reduce((a, b) => a + b, 0) / item.questsArray.length)
                                           : null
 
                                         return (
