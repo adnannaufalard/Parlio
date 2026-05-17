@@ -34,6 +34,7 @@ function StudentClassChapters() {
 
   useEffect(() => {
     if (classId) {
+      sessionStorage.setItem('currentClassId', classId)
       fetchClassChapters()
     }
   }, [classId])

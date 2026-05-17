@@ -253,11 +253,12 @@ function StudentLessonDetail() {
       }
 
       let className = ''
-      if (location.state?.classId) {
+      const currentClassId = location.state?.classId || sessionStorage.getItem('currentClassId')
+      if (currentClassId) {
         const { data: classData } = await supabase
           .from('classes')
           .select('class_name')
-          .eq('id', location.state.classId)
+          .eq('id', currentClassId)
           .single()
         className = classData?.class_name || ''
       }
@@ -374,10 +375,11 @@ function StudentLessonDetail() {
   }
 
   const handleMaterialClick = (material) => {
+    const currentClassId = location.state?.classId || sessionStorage.getItem('currentClassId')
     navigate(`/student/material/${material.id}`, {
       state: {
         lessonId: lessonId,
-        classId: location.state?.classId
+        classId: currentClassId
       }
     })
   }
@@ -426,8 +428,9 @@ function StudentLessonDetail() {
 
   // Function to navigate back to class detail
   const handleBackToChapter = () => {
-    if (location.state?.classId) {
-      navigate(`/student/class/${location.state.classId}`)
+    const currentClassId = location.state?.classId || sessionStorage.getItem('currentClassId')
+    if (currentClassId) {
+      navigate(`/student/class/${currentClassId}`)
       return
     }
     navigate('/student/chapters')
@@ -466,6 +469,13 @@ function StudentLessonDetail() {
         <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 font-['Poppins'] mb-3 tracking-tight leading-tight">
           {lesson?.title}
         </h1>
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          {lesson?.estimated_duration && (
+            <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium font-['Poppins']">
+              <span>~{lesson.estimated_duration} menit</span>
+            </div>
+          )}
+        </div>
         {lesson?.description && (
           <p className="text-xs sm:text-sm text-gray-600 font-['Poppins'] leading-relaxed max-w-4xl">
             {lesson?.description}

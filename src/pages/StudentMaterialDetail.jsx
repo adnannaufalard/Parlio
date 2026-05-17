@@ -138,11 +138,12 @@ export default function StudentMaterialDetail() {
       setMaterial(mat)
 
       let className = ''
-      if (location.state?.classId) {
+      const currentClassId = location.state?.classId || sessionStorage.getItem('currentClassId')
+      if (currentClassId) {
         const { data: classData } = await supabase
           .from('classes')
           .select('class_name')
-          .eq('id', location.state.classId)
+          .eq('id', currentClassId)
           .single()
         className = classData?.class_name || ''
       }
@@ -186,7 +187,16 @@ export default function StudentMaterialDetail() {
   }
 
   const allMedia = material ? mergeLegacyMedia(material, { file_url: 'file_url' }) : []
-  const handleStartQuest = () => { if (quest) { setShowQuestConfirm(false); navigate(`/student/quest/${quest.id}`, { state: location.state }) } }
+  const handleStartQuest = () => { 
+    if (quest) { 
+      setShowQuestConfirm(false)
+      const stateToPass = { ...location.state }
+      if (!stateToPass.classId && sessionStorage.getItem('currentClassId')) {
+        stateToPass.classId = sessionStorage.getItem('currentClassId')
+      }
+      navigate(`/student/quest/${quest.id}`, { state: stateToPass }) 
+    } 
+  }
   const handleBack = () => {
     if (location.state?.lessonId) navigate(`/student/lesson/${location.state.lessonId}`, { state: location.state })
     else if (material?.lesson_id) navigate(`/student/lesson/${material.lesson_id}`)

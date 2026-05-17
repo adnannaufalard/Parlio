@@ -32,13 +32,35 @@ function StudentQuestResult() {
 
   const fetchChapterInfo = async (chapterId) => {
     try {
+      console.log('🔍 Fetching chapter info for chapterId:', chapterId)
       const { data } = await supabase.from('chapters').select('title, floor_number').eq('id', chapterId).single()
       if (data) {
-        setBadgeInfo({ level: data.floor_number || 1, chapterName: data.title })
+        let computedLevel = data.floor_number || 1
+        const currentClassId = resultData?.classId || sessionStorage.getItem('currentClassId')
+        
+        if (currentClassId) {
+          const { data: classChapters } = await supabase
+            .from('class_chapters')
+            .select('chapter_id')
+            .eq('class_id', currentClassId)
+            .order('chapter_id', { ascending: true })
+            
+          if (classChapters) {
+            const index = classChapters.findIndex(c => c.chapter_id === chapterId)
+            if (index !== -1) {
+              computedLevel = index + 1
+            }
+          }
+        }
+        
+        console.log('📖 Chapter found:', { title: data.title, computedLevel })
+        setBadgeInfo({ level: computedLevel, chapterName: data.title })
         setShowBadgePopup(true)
+      } else {
+        console.log('⚠️ Chapter not found')
       }
     } catch (e) {
-      console.error('Error fetching chapter:', e)
+      console.error('❌ Error fetching chapter:', e)
     }
   }
 
@@ -77,8 +99,8 @@ function StudentQuestResult() {
   }
 
   const handleBack = () => {
-    // Navigate back to material detail if available, else lesson detail
-    if (resultData?.materialId && resultData?.chapterId && resultData?.lessonId) {
+    // Navigate back in correct order: material > lesson > class > chapters
+    if (resultData?.materialId && resultData?.lessonId) {
       navigate(`/student/material/${resultData.materialId}`, { 
         state: {
           classId: resultData.classId,
@@ -87,7 +109,7 @@ function StudentQuestResult() {
         },
         replace: true 
       })
-    } else if (resultData?.lessonId) {
+    } else if (resultData?.lessonId && resultData?.chapterId) {
       navigate(`/student/lesson/${resultData.lessonId}`, { 
         state: {
           classId: resultData.classId,
@@ -95,9 +117,8 @@ function StudentQuestResult() {
         },
         replace: true 
       })
-    } else if (resultData?.chapterId) {
-      navigate(`/student/chapters/${resultData.chapterId}`, { 
-        state: { classId: resultData.classId },
+    } else if (resultData?.classId) {
+      navigate(`/student/class/${resultData.classId}`, { 
         replace: true 
       })
     } else {

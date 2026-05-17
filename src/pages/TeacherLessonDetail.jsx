@@ -948,6 +948,7 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
     min_score_to_pass: 60,
     max_attempts: 0,
     time_limit_minutes: null,
+    shuffle_questions: false,
     is_published: false
   })
   const [loading, setLoading] = useState(false)
@@ -967,6 +968,7 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
         min_score_to_pass: quest.min_score_to_pass || 60,
         max_attempts: quest.max_attempts ?? 0,
         time_limit_minutes: quest.time_limit_minutes || null,
+        shuffle_questions: quest.shuffle_questions || false,
         is_published: quest.is_published || false
       })
     }
@@ -1230,17 +1232,31 @@ function QuestModal({ lessonId, materials, quest, onClose, onSuccess }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_published_quest"
-              checked={form.is_published}
-              onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
-              className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-            />
-            <label htmlFor="is_published_quest" className="text-sm font-medium text-gray-700">
-              Publish quest (siswa dapat melihat)
-            </label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="shuffle_questions"
+                checked={form.shuffle_questions}
+                onChange={(e) => setForm({ ...form, shuffle_questions: e.target.checked })}
+                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+              />
+              <label htmlFor="shuffle_questions" className="text-sm font-medium text-gray-700">
+                Acak urutan soal untuk setiap siswa
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="is_published_quest"
+                checked={form.is_published}
+                onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
+                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+              />
+              <label htmlFor="is_published_quest" className="text-sm font-medium text-gray-700">
+                Publish quest (siswa dapat melihat)
+              </label>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">

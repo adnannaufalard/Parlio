@@ -172,6 +172,15 @@ function StudentQuestDetail() {
         // Debug log
         console.log('Questions loaded:', mappedQuestions.map(q => ({ id: q.id, points: q.points })))
         
+        // Shuffle questions if enabled
+        if (questData.shuffle_questions) {
+          for (let i = mappedQuestions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [mappedQuestions[i], mappedQuestions[j]] = [mappedQuestions[j], mappedQuestions[i]]
+          }
+          console.log('Questions shuffled:', mappedQuestions.map(q => ({ id: q.id, points: q.points })))
+        }
+        
         setQuestions(mappedQuestions)
       }
       setLoading(false)
@@ -330,13 +339,20 @@ function StudentQuestDetail() {
 
   const checkAndAwardChapterBadge = async (userId, chapterId) => {
     try {
+      console.log('🔍 checkAndAwardChapterBadge - Starting with chapterId:', chapterId)
+      
       // Get all lessons in this chapter
       const { data: lessons, error: lessonsError } = await supabase
         .from('lessons')
         .select('id')
         .eq('chapter_id', chapterId)
 
-      if (lessonsError || !lessons || lessons.length === 0) return
+      console.log('📚 Lessons found:', lessons?.length, 'Error:', lessonsError)
+      
+      if (lessonsError || !lessons || lessons.length === 0) {
+        console.log('⚠️ No lessons found for chapter')
+        return
+      }
 
       const lessonIds = lessons.map(l => l.id)
 
@@ -346,10 +362,18 @@ function StudentQuestDetail() {
         .select('id, lesson_id')
         .in('lesson_id', lessonIds)
 
-      if (questsError || !quests) return
+      console.log('📋 Quests found:', quests?.length, 'Error:', questsError)
+      
+      if (questsError || !quests) {
+        console.log('⚠️ Error fetching quests')
+        return
+      }
 
       const questIds = quests.map(q => q.id)
-      if (questIds.length === 0) return
+      if (questIds.length === 0) {
+        console.log('⚠️ No quests found')
+        return
+      }
 
       // Get passed attempts for this student
       const { data: passedAttempts } = await supabase
@@ -359,6 +383,8 @@ function StudentQuestDetail() {
         .eq('passed', true)
         .in('quest_id', questIds)
 
+      console.log('✅ Passed attempts:', passedAttempts?.length, 'Required:', questIds.length)
+      
       if (!passedAttempts) return
 
       const passedQuestIds = new Set(passedAttempts.map(a => a.quest_id))
@@ -366,14 +392,18 @@ function StudentQuestDetail() {
       // Check if all quests are passed
       const allQuestsPassed = questIds.every(id => passedQuestIds.has(id))
 
+      console.log('🎯 All quests passed?', allQuestsPassed)
+      
       if (allQuestsPassed) {
         // Get chapter info to determine badge level
         const { data: chapter } = await supabase
           .from('chapters')
-          .select('floor_number')
+          .select('floor_number, title')
           .eq('id', chapterId)
           .single()
 
+        console.log('📖 Chapter info:', { floor_number: chapter?.floor_number, title: chapter?.title })
+        
         if (chapter) {
           // Check if badge already exists
           const { data: existingBadge } = await supabase
@@ -383,35 +413,61 @@ function StudentQuestDetail() {
             .eq('chapter_id', chapterId)
             .single()
 
+          console.log('🏆 Existing badge?', !!existingBadge)
+          
           if (!existingBadge) {
-            // Award badge (floor_number should be 1-5 for unite-one to unite-five)
+            let computedLevel = chapter.floor_number || 1
+            const currentClassId = location.state?.classId || sessionStorage.getItem('currentClassId')
+            
+            if (currentClassId) {
+              const { data: classChapters } = await supabase
+                .from('class_chapters')
+                .select('chapter_id')
+                .eq('class_id', currentClassId)
+                .order('chapter_id', { ascending: true })
+                
+              if (classChapters) {
+                const index = classChapters.findIndex(c => c.chapter_id === chapterId)
+                if (index !== -1) {
+                  computedLevel = index + 1
+                }
+              }
+            }
+
+            // Award badge
+            const badgeData = {
+              student_id: userId,
+              chapter_id: chapterId,
+              badge_type: 'chapter_completion',
+              badge_level: computedLevel
+            }
+            console.log('💾 Saving badge:', badgeData)
+            
             const { error } = await supabase
               .from('student_achievement_badges')
-              .upsert({
-                student_id: userId,
-                chapter_id: chapterId,
-                badge_type: 'chapter_completion',
-                badge_level: chapter.floor_number || 1
-              }, {
+              .upsert(badgeData, {
                 onConflict: 'student_id,chapter_id'
               })
 
             if (!error) {
+              console.log('✨ Badge awarded successfully with level:', computedLevel)
               await NotificationService.createNotification({
                 userId: userId,
                 title: 'Pencapaian Baru!',
-                message: `Selamat! Anda mendapatkan Badge Level ${chapter.floor_number || 1} karena menyelesaikan semua pelajaran.`,
+                message: `Selamat! Anda mendapatkan Badge Level ${computedLevel} karena menyelesaikan semua pelajaran di bab ini.`,
                 type: 'achievement',
                 link: '/student/profile'
               })
               return true
+            } else {
+              console.log('❌ Error saving badge')
             }
           }
         }
       }
       return false
     } catch (error) {
-      console.error('Error checking chapter badge:', error)
+      console.error('❌ Error checking chapter badge:', error)
     }
   }
 
