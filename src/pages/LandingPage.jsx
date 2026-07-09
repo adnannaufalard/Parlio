@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import Logo1 from '../assets/logo/1.png'
+import LogoSMA from '../assets/logo/logo-sma.png'
+import Mascot from '../assets/logo/mascot.png'
 
 function LandingPage() {
   const navigate = useNavigate()
@@ -9,7 +11,8 @@ function LandingPage() {
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center">
+          <div className="flex items-center gap-10">
+            <img src={LogoSMA} alt="SMAN 1 Padamara" className="h-10 object-contain" />
             <img src={Logo1} alt="Parlio" className="h-10 object-contain" />
           </div>
           <button
@@ -31,14 +34,14 @@ function LandingPage() {
                 <span>🇫🇷</span>
                 <span>Platform Gamifikasi Bahasa Prancis</span>
               </div>
-              
+
               <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-slate-900 leading-tight">
                 Belajar Bahasa Prancis{' '}
                 <span className="text-[#1E258F]">Lebih Seru</span>
                 <br />
                 <span className="text-slate-600">dengan Gamifikasi!</span>
               </h1>
-              
+
               <p className="text-lg text-slate-600 leading-relaxed">
                 Sistem informasi pembelajaran berbasis web dengan konsep gamifikasi. Belajar bahasa Prancis menjadi lebih menyenangkan dengan <span className="font-semibold text-[#1E258F]">XP, Level, Badge, dan Leaderboard</span>!
               </p>
@@ -81,7 +84,7 @@ function LandingPage() {
             <div className="hidden lg:flex justify-center items-center">
               <div className="relative">
                 {/* Main Card */}
-                <div className="relative w-80 bg-white rounded-3xl shadow-2xl p-6 border border-slate-100">
+                <div className="relative z-10 w-80 bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-6 border border-slate-100">
                   {/* Header */}
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-16 h-16 bg-gradient-to-br from-[#1E258F] to-[#3a45c9] rounded-2xl flex items-center justify-center text-3xl shadow-lg">🎓</div>
@@ -131,12 +134,19 @@ function LandingPage() {
                 </div>
 
                 {/* Floating Elements */}
-                <div className="absolute -top-4 -right-4 bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg animate-bounce">
+                <div className="absolute -top-4 -right-4 bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg animate-bounce z-20">
                   +50 XP
                 </div>
-                <div className="absolute top-1/2 -left-6 bg-[#1E258F] text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                <div className="absolute top-1/2 -left-6 bg-[#1E258F] text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg z-20">
                   🔥 Streak
                 </div>
+
+                {/* Mascot Image */}
+                <img
+                  src={Mascot}
+                  alt="Mascot Parlio"
+                  className="absolute -bottom-24 xl:-bottom-32 -right-32 lg:-right-[200px] xl:-right-[400px] h-[500px] lg:h-[600px] xl:h-[450px] max-w-none object-contain z-30 drop-shadow-2xl pointer-events-none"
+                />
               </div>
             </div>
           </div>
@@ -272,8 +282,9 @@ function LandingPage() {
             <p className="text-slate-400 text-sm text-center">
               &copy; 2025 Parlio - Sistem Informasi Pembelajaran Bahasa Prancis dengan Gamifikasi
             </p>
-            <div className="text-slate-400 text-sm">
-              SMAN 1 Padamara
+            <div className="flex items-center gap-3 text-slate-400 text-sm">
+              <img src={LogoSMA} alt="SMAN 1 Padamara" className="h-8 object-contain" />
+              <span>SMAN 1 Padamara</span>
             </div>
           </div>
         </div>

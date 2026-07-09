@@ -230,28 +230,47 @@ function TeacherReward() {
         amount: rewardAmount 
       })
 
-      // Use RPC function to give reward (bypasses RLS)
-      const { error: rpcError } = await supabase.rpc('give_reward', {
-        student_id: selectedStudent.id,
-        reward_type: rewardType,
-        amount: rewardAmount
+      const xpAmount = rewardType === 'xp' ? rewardAmount : 0;
+      const coinsAmount = rewardType === 'coins' ? rewardAmount : 0;
+      const reasonToUse = rewardReason || `Manual ${rewardType.toUpperCase()} reward`;
+
+      // Try new function first, fallback to old method
+      const { error: newFuncError } = await supabase.rpc('give_reward_with_history', {
+        p_student_id: selectedStudent.id,
+        p_teacher_id: user.id,
+        p_class_id: selectedClass || null,
+        p_xp_amount: xpAmount,
+        p_coins_amount: coinsAmount,
+        p_reason: reasonToUse
       })
 
-      if (rpcError) {
-        console.error('RPC error:', rpcError)
-        throw rpcError
-      }
+      if (newFuncError && newFuncError.message.includes('does not exist')) {
+        // Use RPC function to give reward (bypasses RLS)
+        const { error: rpcError } = await supabase.rpc('give_reward', {
+          student_id: selectedStudent.id,
+          reward_type: rewardType,
+          amount: rewardAmount
+        })
 
-      // Try to log to reward_history (might not exist yet)
-      await supabase.from('reward_history').insert({
-        student_id: selectedStudent.id,
-        teacher_id: user.id,
-        class_id: selectedClass || null,
-        reward_type: rewardType,
-        xp_amount: rewardType === 'xp' ? rewardAmount : 0,
-        coins_amount: rewardType === 'coins' ? rewardAmount : 0,
-        reason: rewardReason || `Manual ${rewardType.toUpperCase()} reward`
-      }).catch(() => {}) // Ignore error if table doesn't exist
+        if (rpcError) {
+          console.error('RPC error:', rpcError)
+          throw rpcError
+        }
+
+        // Try to log to reward_history (might not exist yet)
+        await supabase.from('reward_history').insert({
+          student_id: selectedStudent.id,
+          teacher_id: user.id,
+          class_id: selectedClass || null,
+          reward_type: rewardType,
+          xp_amount: xpAmount,
+          coins_amount: coinsAmount,
+          reason: reasonToUse
+        }).catch(() => {}) // Ignore error if table doesn't exist
+      } else if (newFuncError) {
+        console.error('RPC error:', newFuncError)
+        throw newFuncError
+      }
 
       await NotificationService.createNotification({
         userId: selectedStudent.id,
