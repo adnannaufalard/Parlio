@@ -280,7 +280,7 @@ function LandingPage() {
               <img src={Logo1} alt="Parlio" className="h-8 object-contain brightness-0 invert" />
             </div>
             <p className="text-slate-400 text-sm text-center">
-              &copy; 2025 Parlio - Sistem Informasi Pembelajaran Bahasa Prancis dengan Gamifikasi
+              &copy; 2025 Parlio - Sistem Pembelajaran Bahasa Prancis dengan Gamifikasi
             </p>
             <div className="flex items-center gap-3 text-slate-400 text-sm">
               <img src={LogoSMA} alt="SMAN 1 Padamara" className="h-8 object-contain" />
