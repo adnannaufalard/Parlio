@@ -43,7 +43,7 @@ function LandingPage() {
               </h1>
 
               <p className="text-lg text-slate-600 leading-relaxed">
-                Sistem informasi pembelajaran berbasis web dengan konsep gamifikasi. Belajar bahasa Prancis menjadi lebih menyenangkan dengan <span className="font-semibold text-[#1E258F]">XP, Level, Badge, dan Leaderboard</span>!
+                Sistem pembelajaran berbasis web dengan konsep gamifikasi. Belajar bahasa Prancis menjadi lebih menyenangkan dengan <span className="font-semibold text-[#1E258F]">XP, Level, Badge, dan Leaderboard</span>!
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
