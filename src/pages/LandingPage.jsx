@@ -7,7 +7,7 @@ function LandingPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white overflow-x-hidden">
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
@@ -81,7 +81,7 @@ function LandingPage() {
             </div>
 
             {/* Right Content - Gamification Illustration */}
-            <div className="hidden lg:flex justify-center items-center">
+            <div className="flex justify-center items-center mt-8 lg:mt-0">
               <div className="relative">
                 {/* Main Card */}
                 <div className="relative z-10 w-80 bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-6 border border-slate-100">
@@ -145,7 +145,7 @@ function LandingPage() {
                 <img
                   src={Mascot}
                   alt="Mascot Parlio"
-                  className="absolute -bottom-24 xl:-bottom-32 -right-32 lg:-right-[200px] xl:-right-[400px] h-[500px] lg:h-[600px] xl:h-[450px] max-w-none object-contain z-30 drop-shadow-2xl pointer-events-none"
+                  className="absolute -bottom-6 lg:-bottom-8 xl:-bottom-12 -right-12 md:-right-24 lg:-right-48 xl:-right-64 h-[200px] md:h-[280px] lg:h-[350px] xl:h-[380px] max-w-none object-contain z-30 drop-shadow-2xl pointer-events-none"
                 />
               </div>
             </div>
