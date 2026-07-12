@@ -333,7 +333,7 @@ function TeacherStore() {
 
   return (
     <TeacherLayout>
-      <div className="p-6 space-y-6">
+      <div className="space-y-4 sm:space-y-6 max-w-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-6 text-white">
           <div className="flex items-center justify-between">

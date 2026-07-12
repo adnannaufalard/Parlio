@@ -244,91 +244,26 @@ export default function MultiMediaManager({
             </button>
           </div>
 
-          {/* Method toggle */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setAddMethod('upload')}
-              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition ${
-                addMethod === 'upload'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              📤 Upload File
-            </button>
-            <button
-              type="button"
-              onClick={() => setAddMethod('url')}
-              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition ${
-                addMethod === 'url'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              🔗 URL Eksternal
-            </button>
-          </div>
-
-          {addMethod === 'upload' ? (
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={acceptTypes}
-                multiple
-                onChange={handleFileUpload}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
-                disabled={uploading}
-              />
-              {uploading && (
-                <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span>Mengupload file...</span>
-                </div>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Max: Gambar 10MB, Audio 20MB, Video 50MB, PDF 10MB. Bisa pilih beberapa file sekaligus.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <input
-                type="url"
-                value={urlInput}
-                onChange={(e) => handleUrlInputChange(e.target.value)}
-                placeholder="https://... (YouTube, Google Drive, dll)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
-              />
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={urlName}
-                  onChange={(e) => setUrlName(e.target.value)}
-                  placeholder="Nama media (opsional)"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
-                />
-                <select
-                  value={urlType}
-                  onChange={(e) => setUrlType(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
-                >
-                  <option value="video">🎥 Video</option>
-                  <option value="audio">🎵 Audio</option>
-                  <option value="image">🖼️ Gambar</option>
-                  <option value="pdf">📄 PDF</option>
-                  <option value="link">🔗 Link</option>
-                </select>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={acceptTypes}
+              multiple
+              onChange={handleFileUpload}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
+              disabled={uploading}
+            />
+            {uploading && (
+              <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span>Mengupload file...</span>
               </div>
-              <button
-                type="button"
-                onClick={handleAddUrl}
-                className="w-full px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm font-medium"
-              >
-                Tambah URL
-              </button>
-            </div>
-          )}
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              💡 Max: Gambar 10MB, Audio 20MB, Video 50MB, PDF 10MB. Bisa pilih beberapa file sekaligus.
+            </p>
+          </div>
         </div>
       )}
     </div>

@@ -152,7 +152,7 @@ export default function AdminLayout({ children, title = 'Dashboard' }) {
         </header>
 
         {/* Content */}
-        <main className="p-4 lg:p-6 pt-18 lg:pt-6">
+        <main className="p-4 lg:p-6 pt-20 lg:pt-6">
           {children}
         </main>
       </div>

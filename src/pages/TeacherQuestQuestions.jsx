@@ -96,7 +96,7 @@ function TeacherQuestQuestions() {
 
   return (
     <TeacherLayout>
-      <div className="p-6 space-y-6">
+      <div className="space-y-4 sm:space-y-6 max-w-full">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <button

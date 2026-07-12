@@ -141,7 +141,7 @@ export default function AdminUsers() {
   return (
     <AdminLayout title="Users">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -184,7 +184,7 @@ export default function AdminUsers() {
             <Button onClick={handleCreate}><Plus className="h-4 w-4 mr-2" /> Tambah User</Button>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

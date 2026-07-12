@@ -179,7 +179,7 @@ function TeacherLessonDetail() {
 
   return (
     <TeacherLayout>
-      <div className="p-6 space-y-6">
+      <div className="space-y-4 sm:space-y-6 max-w-full">
         {/* Header Back & Breadcrumbs */}
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex items-center gap-4">

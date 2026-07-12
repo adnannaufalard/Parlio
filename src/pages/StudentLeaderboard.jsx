@@ -194,7 +194,7 @@ export default function StudentLeaderboard() {
       <div className="space-y-4 pb-6 relative">
         {/* Header - Golden Theme with Animation */}
         <Card className="border-0 shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 p-6 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 p-4 sm:p-6 text-white relative overflow-hidden">
             {/* Decorative elements */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
@@ -223,7 +223,7 @@ export default function StudentLeaderboard() {
         {/* Top 3 Podium */}
         {leaderboard.length >= 3 && (
           <Card className="border-0 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <h3 className="text-center text-sm font-medium text-gray-500 mb-4">TOP 3</h3>
               <div className="flex items-end justify-center gap-4">
                 {/* 2nd Place */}

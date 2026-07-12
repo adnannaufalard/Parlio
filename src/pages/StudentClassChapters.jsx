@@ -392,20 +392,25 @@ function StudentClassChapters() {
         scoresByStudent[stat.student_id] = {
           total: Number(stat.total_score || 0),
           avg: Number(stat.avg_score || 0),
-          count: Number(stat.quest_count || 0)
+          count: Number(stat.quest_count || 0),
+          totalQuests: Number(stat.total_quests || 0)
         }
       })
 
+      // Get the class total quests (should be same for all, just take from first available)
+      const classTotalQuests = leaderboardStats?.length > 0 ? Number(leaderboardStats[0].total_quests || 0) : 0;
+
       // Build leaderboard with class-specific scores
       const leaderboardWithScores = membersData.map(m => {
-        const studentScores = scoresByStudent[m.student_id] || { total: 0, avg: 0, count: 0 }
+        const studentScores = scoresByStudent[m.student_id] || { total: 0, avg: 0, count: 0, totalQuests: classTotalQuests }
         const avgScore = studentScores.avg
         return {
           id: m.profiles.id,
           name: m.profiles.full_name,
           avatar_url: m.profiles.avatar_url,
           avg_score: avgScore,
-          quest_count: studentScores.count
+          quest_count: studentScores.count,
+          total_quests: studentScores.totalQuests || classTotalQuests
         }
       }).sort((a, b) => b.avg_score - a.avg_score || b.quest_count - a.quest_count)
 
@@ -980,7 +985,7 @@ function StudentClassChapters() {
                           {student.name}
                         </h4>
                         <p className="text-xs text-gray-500 font-['Poppins']">
-                          {student.quest_count || 0} Quest dikerjakan
+                          {student.quest_count || 0} dari {student.total_quests || 0} quest dikerjakan
                         </p>
                       </div>
 
