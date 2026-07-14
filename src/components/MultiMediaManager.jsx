@@ -34,7 +34,8 @@ export default function MultiMediaManager({
   folder = 'images',
   label = 'Media',
   acceptTypes = 'image/*,audio/*,video/*,.pdf',
-  compact = false
+  compact = false,
+  allowUrl = true
 }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [addMethod, setAddMethod] = useState('upload') // 'upload' | 'url'
@@ -224,7 +225,7 @@ export default function MultiMediaManager({
         >
           <div className="text-3xl mb-2">📎</div>
           <p className="text-sm text-gray-500">Belum ada media. Klik untuk menambahkan.</p>
-          <p className="text-xs text-gray-400 mt-1">Upload file atau masukkan URL</p>
+          <p className="text-xs text-gray-400 mt-1">{allowUrl ? 'Upload file atau masukkan URL' : 'Upload file saja'}</p>
         </div>
       )}
 
@@ -244,26 +245,94 @@ export default function MultiMediaManager({
             </button>
           </div>
 
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={acceptTypes}
-              multiple
-              onChange={handleFileUpload}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
-              disabled={uploading}
-            />
-            {uploading && (
-              <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                <span>Mengupload file...</span>
+          {allowUrl && (
+            <div className="flex border-b border-green-200 mb-3">
+              <button
+                type="button"
+                onClick={() => setAddMethod('upload')}
+                className={`flex-1 py-1.5 text-xs font-semibold uppercase ${addMethod === 'upload' ? 'text-green-700 border-b-2 border-green-500 bg-white/50' : 'text-gray-500 hover:text-green-600'}`}
+              >
+                Upload File
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddMethod('url')}
+                className={`flex-1 py-1.5 text-xs font-semibold uppercase ${addMethod === 'url' ? 'text-green-700 border-b-2 border-green-500 bg-white/50' : 'text-gray-500 hover:text-green-600'}`}
+              >
+                URL Eksternal
+              </button>
+            </div>
+          )}
+
+          {(!allowUrl || addMethod === 'upload') ? (
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={acceptTypes}
+                multiple
+                onChange={handleFileUpload}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
+                disabled={uploading}
+              />
+              {uploading && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Mengupload file...</span>
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Max: Gambar 10MB, Audio 20MB, Video 50MB, PDF 10MB. Bisa pilih beberapa file sekaligus.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">URL Media</label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={urlInput}
+                  onChange={(e) => handleUrlInputChange(e.target.value)}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
+                />
               </div>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              💡 Max: Gambar 10MB, Audio 20MB, Video 50MB, PDF 10MB. Bisa pilih beberapa file sekaligus.
-            </p>
-          </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Tipe</label>
+                  <select
+                    value={urlType}
+                    onChange={(e) => setUrlType(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
+                  >
+                    <option value="video">Video (YouTube/DLL)</option>
+                    <option value="audio">Audio (Spotify/DLL)</option>
+                    <option value="image">Gambar</option>
+                    <option value="pdf">PDF</option>
+                    <option value="link">Link Biasa</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Nama (Opsional)</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Video Penjelasan"
+                    value={urlName}
+                    onChange={(e) => setUrlName(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-black text-sm"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddUrl}
+                disabled={!urlInput.trim()}
+                className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded text-sm disabled:opacity-50 transition"
+              >
+                Tambahkan URL
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -565,6 +565,7 @@ function QuestionModal({ questId, questionType, question, questionOrder, onClose
               folder="images"
               label="Media Pendukung (Opsional)"
               acceptTypes="image/*,audio/*,video/*"
+              allowUrl={false}
             />
           </div>
 
@@ -669,6 +670,7 @@ function MultipleChoiceFields({ form, setForm }) {
               label=""
               acceptTypes="image/*,audio/*"
               compact
+              allowUrl={false}
             />
           </div>
         ))}
